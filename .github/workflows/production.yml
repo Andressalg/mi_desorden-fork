@@ -17,4 +17,5 @@ jobs:
     environment: production
     steps:
       - name: Pendiente
-        run: echo "TODO: deploy de la API a producción" >> $GITHUB_STEP_SUMMARY
+        run: |
+          echo "TODO: deploy de la API a producción" >> "$GITHUB_STEP_SUMMARY"

@@ -17,4 +17,5 @@ jobs:
     environment: staging
     steps:
       - name: Pendiente
-        run: echo "TODO: deploy de la API a staging" >> $GITHUB_STEP_SUMMARY
+        run: |
+          echo "TODO: deploy de la API a staging" >> "$GITHUB_STEP_SUMMARY"
