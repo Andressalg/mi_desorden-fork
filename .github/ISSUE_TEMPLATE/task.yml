@@ -1,0 +1,33 @@
+name: "🔧 Tarea"
+description: "Trabajo técnico, infra o mantenimiento"
+labels: ["chore"]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área
+      options:
+        - Firmware
+        - API
+        - Cliente
+        - Core
+        - CI / Infra
+        - Docs
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Qué hay que hacer
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Cuándo está lista
+      placeholder: |
+        - [ ] ...
+    validations:
+      required: false

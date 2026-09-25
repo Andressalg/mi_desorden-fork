@@ -1,0 +1,36 @@
+{
+  "name": "mi_desorden",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/api",
+    "apps/client",
+    "packages/core"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "lint": "eslint .",
+    "clean": "turbo run clean --force && rm -rf node_modules",
+    "api": "bun run --cwd apps/api dev",
+    "client": "bun run --cwd apps/client dev",
+    "client:ios": "bun run --cwd apps/client ios",
+    "client:android": "bun run --cwd apps/client android",
+    "fw:build": "cd apps/firmware && idf.py build",
+    "fw:flash": "cd apps/firmware && idf.py -p $ESP_PORT flash monitor",
+    "ports:free": "lsof -ti :3000 | xargs kill -9 2>/dev/null; lsof -ti :8081 | xargs kill -9 2>/dev/null; true"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.36.0",
+    "eslint": "^9.36.0",
+    "turbo": "^2.5.0",
+    "typescript": "~5.9.2",
+    "typescript-eslint": "^8.44.0"
+  },
+  "packageManager": "bun@1.2.0",
+  "engines": {
+    "node": ">=20"
+  }
+}

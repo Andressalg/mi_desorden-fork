@@ -1,0 +1,55 @@
+name: "🚀 Feature"
+description: "Nueva funcionalidad o mejora"
+labels: ["feature"]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área
+      options:
+        - Firmware
+        - API
+        - Cliente
+        - Core
+        - Varias
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Prioridad
+      options:
+        - 🔴 Alta
+        - 🟡 Media
+        - 🟢 Baja
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Descripción
+      description: "¿Qué se quiere lograr?"
+      placeholder: "Como usuario quiero..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Criterios de aceptación
+      placeholder: |
+        - [ ] Endpoint creado y documentado
+        - [ ] Pantalla en el cliente
+        - [ ] Probado en hardware
+    validations:
+      required: true
+
+  - type: textarea
+    id: technical
+    attributes:
+      label: Notas técnicas
+      placeholder: "Endpoint: POST /detections ..."
+    validations:
+      required: false

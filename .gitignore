@@ -1,0 +1,35 @@
+# deps
+node_modules/
+.turbo/
+
+# build
+dist/
+build/
+.expo/
+web-build/
+
+# firmware (ESP-IDF)
+apps/firmware/build/
+apps/firmware/sdkconfig
+apps/firmware/sdkconfig.old
+apps/firmware/managed_components/
+apps/firmware/dependencies.lock
+
+# modelos y datasets (no van al repo)
+models/*.tflite
+models/*.onnx
+models/*.pt
+datasets/
+
+# env y secretos
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# sistema / editores
+.DS_Store
+*.log
+.idea/
+.vscode/*
+!.vscode/extensions.json
