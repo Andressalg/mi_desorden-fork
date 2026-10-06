@@ -15,6 +15,7 @@ import { IntentosFallidosService } from "./intentos-fallidos.service";
 import { ES_PUBLICO } from "./publico.decorator";
 import { SupabaseJwtService } from "./supabase-jwt.service";
 import type { RequestConSesion } from "./usuario.decorator";
+import { ipDe } from "../../utils/request";
 
 /**
  * Guard global: toda ruta pide `Authorization: Bearer <access token de Supabase>`
@@ -39,7 +40,7 @@ export class SesionGuard implements CanActivate {
     if (publico) return true;
 
     const req = ctx.switchToHttp().getRequest<RequestConSesion>();
-    const ip = req.ip ?? req.socket.remoteAddress ?? "desconocida";
+    const ip = ipDe(req);
 
     const espera = this.intentos.bloqueo(ip);
     if (espera > 0) {

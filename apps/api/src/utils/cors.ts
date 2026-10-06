@@ -1,3 +1,7 @@
+import type { INestApplication } from "@nestjs/common";
+import type { NextFunction, Request, Response } from "express";
+import { ahoraIso } from "./fecha";
+
 /**
  * Lista blanca de orígenes (CORS). Solo aplica a navegadores: la app móvil y el
  * ESP32 no mandan Origin y no se ven afectados.
@@ -32,4 +36,26 @@ export function crearFiltroOrigen(permitidos: string[]): FiltroOrigen {
       return false;
     }
   };
+}
+
+/**
+ * Aplica la lista blanca a la app: un Origin fuera de la lista recibe 403
+ * (también en el preflight); sin Origin pasa.
+ */
+export function aplicarCors(app: INestApplication, permitidos: string[]) {
+  const permitido = crearFiltroOrigen(permitidos);
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (permitido(req.headers.origin)) return next();
+    res.status(403).json({
+      statusCode: 403,
+      error: "FORBIDDEN",
+      message: "Origen no permitido",
+      timestamp: ahoraIso(),
+      path: req.url,
+    });
+  });
+  app.enableCors({
+    origin: (origen: string | undefined, cb: (e: Error | null, ok?: boolean) => void) =>
+      cb(null, permitido(origen)),
+  });
 }

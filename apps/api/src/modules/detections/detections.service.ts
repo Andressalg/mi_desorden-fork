@@ -2,14 +2,14 @@ import type { Detection, Paginado } from "@mi-desorden/core";
 import { Injectable } from "@nestjs/common";
 import { DetectionsRepository } from "./detections.repository";
 import type { CrearDeteccionDto } from "./dto/crear-deteccion.dto";
+import { ahoraIso, paginar } from "../../utils";
 
 @Injectable()
 export class DetectionsService {
   constructor(private readonly repo: DetectionsRepository) {}
 
   listar(deviceId?: string): Paginado<Detection> {
-    const items = this.repo.listar(deviceId);
-    return { items, total: items.length };
+    return paginar(this.repo.listar(deviceId));
   }
 
   crear(dto: CrearDeteccionDto): Detection {
@@ -20,7 +20,7 @@ export class DetectionsService {
       confianza: dto.confianza,
       fuente: dto.fuente,
       imagen_url: dto.imagen_url ?? null,
-      creada_en: new Date().toISOString(),
+      creada_en: ahoraIso(),
     });
   }
 }

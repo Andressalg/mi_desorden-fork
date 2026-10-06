@@ -52,9 +52,16 @@ Regla: fuera de `api/` no se importa `@supabase/supabase-js` ni se hace `fetch`.
 apps/api/src
 ├── server.ts            arranque local (bun dev)
 ├── serverless.ts        handler para Vercel: arranca Nest una vez y lo reutiliza
-├── app.setup.ts         CORS, ValidationPipe, filtro de errores y Swagger (lo comparten server y tests)
+├── app.setup.ts         arma la app con utils/ (lo comparten server, serverless y tests)
 ├── core.module.ts       raíz: ConfigModule + módulos
-├── shared/              global: config/env, guards/device-token, filters/http-exception
+├── utils/               funciones planas que usan varios módulos
+│   ├── cors.ts              lista blanca de orígenes (403 si no está)
+│   ├── seguridad.ts         helmet + trust proxy
+│   ├── pipes.ts · filters.ts · swagger.ts   lo global de Nest
+│   ├── paginado.ts          paginar() → { items, total }
+│   ├── fecha.ts             ahoraIso()
+│   └── request.ts           ipDe(req)
+├── shared/              lo que vive dentro de Nest: config/env, auth (guard de sesión), guards, filters
 └── modules/
     ├── health/          GET /health
     ├── devices/         controller · service · repository · dto
@@ -120,7 +127,7 @@ Además, global: `helmet` (headers de seguridad) y `@nestjs/throttler` (120 requ
   - `staging`: solo `https://mi-desorden.vercel.app/api/v1` (o el alias `mi-desorden-guzzo1309s-projects.vercel.app`). Ni previews, ni http, ni otros dominios.
   - `development`: `http://` a localhost o IP de la red local, en `/api/v1`.
   - `production`: ninguna todavía.
-- **API → navegadores** (CORS, `apps/api/src/shared/seguridad/origenes.ts`): un `Origin` fuera de `CORS_ORIGIN` recibe **403**. Requests sin `Origin` (app móvil, ESP32, curl) no se ven afectadas.
+- **API → navegadores** (CORS, `apps/api/src/utils/cors.ts`): un `Origin` fuera de `CORS_ORIGIN` recibe **403**. Requests sin `Origin` (app móvil, ESP32, curl) no se ven afectadas.
 
 Rutas sin sesión, marcadas con `@Publico()`: `GET /api/v1/health`, `POST /api/v1/devices/heartbeat`, `POST /api/v1/detections`. `GET /api/v1/auth/me` devuelve la sesión del token.
 

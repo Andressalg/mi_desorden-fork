@@ -2,14 +2,14 @@ import type { Device, Paginado } from "@mi-desorden/core";
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { DevicesRepository } from "./devices.repository";
 import type { HeartbeatDto } from "./dto/heartbeat.dto";
+import { ahoraIso, paginar } from "../../utils";
 
 @Injectable()
 export class DevicesService {
   constructor(private readonly repo: DevicesRepository) {}
 
   listar(): Paginado<Device> {
-    const items = this.repo.listar();
-    return { items, total: items.length };
+    return paginar(this.repo.listar());
   }
 
   obtener(id: string): Device {
@@ -25,7 +25,7 @@ export class DevicesService {
       nombre: dto.nombre,
       ubicacion: this.repo.buscar(dto.device_id)?.ubicacion ?? null,
       estado: "online",
-      visto_en: new Date().toISOString(),
+      visto_en: ahoraIso(),
       firmware: dto.firmware ?? null,
     });
   }
