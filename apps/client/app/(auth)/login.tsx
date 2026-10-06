@@ -1,4 +1,4 @@
-import { Link } from "expo-router";
+import { Link, router } from "expo-router";
 import { useState } from "react";
 import { Text, View } from "react-native";
 import { MarcoAcceso } from "@/components/Acceso";
@@ -22,8 +22,14 @@ export default function Login() {
     try {
       await iniciarSesion(email, clave);
     } catch (e) {
-      setError((e as Error).message);
+      const mensaje = (e as Error).message;
       setCargando(false);
+      // Cuenta creada pero sin confirmar: a la pantalla del código / reenvío.
+      if (/confirmá tu correo/i.test(mensaje)) {
+        router.push({ pathname: "/confirmar", params: { email: email.trim().toLowerCase() } });
+        return;
+      }
+      setError(mensaje);
     }
   }
 

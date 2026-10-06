@@ -1,0 +1,88 @@
+import { router, useLocalSearchParams } from "expo-router";
+import { useEffect, useState } from "react";
+import { Text, View } from "react-native";
+import { MarcoAcceso } from "@/components/Acceso";
+import { BotonPrincipal, CampoFila, Grupo } from "@/components/ui";
+import { useStore } from "@/lib/store";
+import { tipo, useTema } from "@/lib/theme";
+
+const ESPERA = 60; // Supabase deja reenviar el correo una vez por minuto
+
+/**
+ * Después de registrarse (o de intentar entrar sin confirmar). Dos formas de
+ * confirmar: tocar el enlace del correo en este teléfono (vuelve por /callback)
+ * o escribir el código de 6 dígitos, que sirve si el correo se abre en otro lado.
+ */
+export default function Confirmar() {
+  const t = useTema();
+  const { email = "" } = useLocalSearchParams<{ email?: string }>();
+  const { confirmarConCodigo, reenviarConfirmacion } = useStore();
+  const [codigo, setCodigo] = useState("");
+  const [aviso, setAviso] = useState<{ texto: string; error: boolean } | null>(null);
+  const [confirmando, setConfirmando] = useState(false);
+  const [espera, setEspera] = useState(ESPERA);
+
+  useEffect(() => {
+    if (espera <= 0) return;
+    const id = setTimeout(() => setEspera((s) => s - 1), 1000);
+    return () => clearTimeout(id);
+  }, [espera]);
+
+  const completo = codigo.replace(/\D/g, "").length === 6;
+
+  async function confirmar() {
+    if (!completo || confirmando) return;
+    setConfirmando(true);
+    setAviso(null);
+    try {
+      // Con la sesión iniciada, el guard del layout raíz lleva solo a las tabs.
+      await confirmarConCodigo(email, codigo);
+    } catch (e) {
+      setAviso({ texto: (e as Error).message, error: true });
+      setConfirmando(false);
+    }
+  }
+
+  async function reenviar() {
+    setAviso(null);
+    try {
+      await reenviarConfirmacion(email);
+      setEspera(ESPERA);
+      setAviso({ texto: "Te mandamos otro correo.", error: false });
+    } catch (e) {
+      setAviso({ texto: (e as Error).message, error: true });
+    }
+  }
+
+  return (
+    <MarcoAcceso
+      titulo="Revisá tu correo"
+      bajada={`Te mandamos un correo a ${email}. Tocá el enlace desde este teléfono o escribí el código.`}
+    >
+      <Grupo pie={aviso?.texto} pieError={aviso?.error}>
+        <CampoFila
+          placeholder="Código de 6 dígitos"
+          value={codigo}
+          onChangeText={(v) => setCodigo(v.replace(/\D/g, "").slice(0, 6))}
+          keyboardType="number-pad"
+          textContentType="oneTimeCode"
+          autoComplete="one-time-code"
+          onSubmitEditing={confirmar}
+        />
+      </Grupo>
+      <View style={{ gap: 12 }}>
+        <BotonPrincipal onPress={confirmar} deshabilitado={!completo} cargando={confirmando}>
+          Confirmar cuenta
+        </BotonPrincipal>
+        <BotonPrincipal variante="gris" onPress={reenviar} deshabilitado={espera > 0}>
+          {espera > 0 ? `Reenviar correo (${espera} s)` : "Reenviar correo"}
+        </BotonPrincipal>
+        <Text style={[tipo.subtitulo, { color: t.textoSec, textAlign: "center" }]}>
+          <Text onPress={() => router.replace("/login")} style={{ color: t.tinte, fontWeight: "600" }}>
+            Volver a iniciar sesión
+          </Text>
+        </Text>
+      </View>
+    </MarcoAcceso>
+  );
+}
