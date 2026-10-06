@@ -1,5 +1,5 @@
 import type { LedColor, Producto } from "@mi-desorden/core";
-import { useIsFocused } from "@react-navigation/native";
+import { useIsFocused } from "expo-router";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Haptics from "expo-haptics";
 import { useEffect, useRef, useState } from "react";
