@@ -5,7 +5,7 @@
 ```
 ┌────────────────────┐        POST /devices/heartbeat        ┌──────────────────┐
 │  apps/firmware     │ ────────────────────────────────────> │   apps/api       │
-│  ESP32-S3          │        POST /detections               │   Bun + Elysia   │
+│  ESP32-S3          │        POST /detections               │   NestJS (Bun)   │
 │  cámara + mic      │                                       │                  │
 └────────────────────┘                                       └────────┬─────────┘
                                                                       │ GET /devices
@@ -21,9 +21,25 @@
 | Workspace | Qué es |
 |-----------|--------|
 | `apps/firmware` | ESP-IDF v5 en C. Conecta WiFi, inicializa cámara e I2S, manda heartbeat y detecciones. |
-| `apps/api` | Bun + Elysia. Recibe detecciones, las guarda y las sirve. Swagger en `/docs`. |
+| `apps/api` | NestJS sobre Bun, modular (ver abajo). Recibe heartbeats y detecciones del ESP32. Swagger en `/docs`. |
 | `apps/client` | Expo + Expo Router. Tabs nativas (Liquid Glass en iOS 26+): inventario, cámara, accesos, perfil. Auth, inventarios y productos contra Supabase con Realtime. |
 | `packages/core` | Tipos (`Device`, `Detection`) y el cliente HTTP que usa el cliente Expo. |
+
+## Estructura de la API
+
+```
+apps/api/src
+├── server.ts            arranque
+├── app.setup.ts         CORS, ValidationPipe, filtro de errores y Swagger (lo comparten server y tests)
+├── core.module.ts       raíz: ConfigModule + módulos
+├── shared/              global: config/env, guards/device-token, filters/http-exception
+└── modules/
+    ├── health/          GET /health
+    ├── devices/         controller · service · repository · dto
+    └── detections/      controller · service · repository · dto
+```
+
+Cada módulo separa HTTP (controller), lógica (service) y datos (repository). Para pasar a Supabase solo cambian los repositories.
 
 ## Endpoints
 
@@ -38,8 +54,9 @@
 
 ## Persistencia
 
-Hoy es un **store en memoria** (`apps/api/src/lib/store.ts`): se pierde al reiniciar. Es a propósito, hasta elegir base de datos (ver [DECISIONES.md](DECISIONES.md)).
+- **App** → Supabase directo (auth, inventarios, productos) con RLS y Realtime. Esquema en `supabase/migrations/`.
+- **API** → todavía en memoria (`DevicesRepository`, `DetectionsRepository`): se pierde al reiniciar. El paso siguiente es que esos repositories escriban en Supabase (ver [DECISIONES.md](DECISIONES.md)).
 
 ## Autenticación
 
-El firmware manda `x-device-token`. La API todavía **no lo valida** — falta el middleware.
+El firmware manda `x-device-token`; `DeviceTokenGuard` lo valida en los `POST` contra `DEVICE_TOKEN`. Si la variable está vacía (desarrollo) deja pasar; en producción es obligatoria.
