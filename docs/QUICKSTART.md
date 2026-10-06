@@ -8,18 +8,25 @@
 bun install
 ```
 
-## 2. Variables de entorno
+## 2. Variables de entorno (Doppler)
+
+Las variables viven en Doppler, proyecto `mi_desroden`. Los scripts `dev`, `ios`, `android` y `start` corren con `doppler run --`.
 
 ```bash
-cp apps/api/.env.example apps/api/.env
-cp apps/client/.env.example apps/client/.env
+doppler login
+doppler setup          # elegí el config: dev_personal para lo tuyo, dev para el compartido
 ```
 
-En `apps/client/.env`, si vas a probar en un teléfono físico, poné la IP de tu máquina en vez de `localhost`:
+| Variable | Quién la usa | Valor |
+|----------|--------------|-------|
+| `EXPO_PUBLIC_SUPABASE_URL` | client | `https://eotdzgsisxfqyqbxwqna.supabase.co` |
+| `EXPO_PUBLIC_SUPABASE_KEY` | client | Supabase → API Keys → **publishable** (nunca la secret) |
+| `EXPO_PUBLIC_API_URL` | client | `http://localhost:3000`, o la IP de tu máquina si probás en un teléfono físico |
+| `PORT` | api | `3000` |
+| `DEVICE_TOKEN` | api | El que tenga el firmware |
+| `CORS_ORIGIN` | api | `*` en desarrollo |
 
-```
-EXPO_PUBLIC_API_URL=http://192.168.1.100:3000
-```
+Sin acceso a Doppler: copiá los `.env.example` a `.env` y usá `bun run dev:local` dentro de cada app.
 
 ## 3. Levantar API y cliente
 

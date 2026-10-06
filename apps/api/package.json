@@ -4,8 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun --watch src/index.ts",
-    "start": "bun src/index.ts",
+    "dev": "doppler run -- bun --watch src/index.ts",
+    "dev:local": "bun --watch src/index.ts",
+    "start": "doppler run -- bun src/index.ts",
     "build": "bun build src/index.ts --target bun --outdir dist",
     "typecheck": "tsc --noEmit",
     "test": "bun test",

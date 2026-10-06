@@ -22,7 +22,7 @@
 |-----------|--------|
 | `apps/firmware` | ESP-IDF v5 en C. Conecta WiFi, inicializa cámara e I2S, manda heartbeat y detecciones. |
 | `apps/api` | Bun + Elysia. Recibe detecciones, las guarda y las sirve. Swagger en `/docs`. |
-| `apps/client` | Expo + Expo Router. Tabs: dispositivos, historial, ajustes. |
+| `apps/client` | Expo + Expo Router. Tabs nativas (Liquid Glass en iOS 26+): inventario, cámara, accesos, perfil. Auth, inventarios y productos contra Supabase con Realtime. |
 | `packages/core` | Tipos (`Device`, `Detection`) y el cliente HTTP que usa el cliente Expo. |
 
 ## Endpoints
