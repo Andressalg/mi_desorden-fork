@@ -23,6 +23,7 @@ doppler setup          # elegí el config: dev_personal para lo tuyo, dev para e
 | `EXPO_PUBLIC_SUPABASE_KEY` | client | Supabase → API Keys → **publishable** (nunca la secret) |
 | `EXPO_PUBLIC_API_URL` | client | `http://localhost:3000`, o la IP de tu máquina si probás en un teléfono físico |
 | `PORT` | api | `3000` |
+| `SUPABASE_URL` | api | Opcional: si no está, usa `EXPO_PUBLIC_SUPABASE_URL`. Con ella verifica los tokens de la app |
 | `DEVICE_TOKEN` | api | El que tenga el firmware |
 | `CORS_ORIGIN` | api | `*` en desarrollo |
 

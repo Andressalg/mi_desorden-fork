@@ -7,12 +7,13 @@ import request from "supertest";
 import { configurarApp } from "../src/app.setup";
 import { CoreModule } from "../src/core.module";
 import { validarEnv } from "../src/shared/config/env";
+import { sesion } from "./sesion";
 
 /** Levanta la app completa (mismo setup que el server) con el env que se pase. */
 async function crearApp(env: Record<string, string> = {}) {
   const modulo = await Test.createTestingModule({ imports: [CoreModule] })
     .overrideProvider(ConfigService)
-    .useValue(new ConfigService(validarEnv({ DEVICE_TOKEN: "", ...env })))
+    .useValue(new ConfigService(validarEnv({ DEVICE_TOKEN: "", ...sesion.env, ...env })))
     .compile();
   const app = configurarApp(modulo.createNestApplication({ logger: false }));
   await app.init();
@@ -34,7 +35,10 @@ describe("API", () => {
   });
 
   it("arranca sin dispositivos", async () => {
-    const res = await request(app.getHttpServer()).get("/devices").expect(200);
+    const res = await request(app.getHttpServer())
+      .get("/devices")
+      .set(await sesion.header())
+      .expect(200);
     expect(res.body).toEqual({ items: [], total: 0 });
   });
 
@@ -44,19 +48,28 @@ describe("API", () => {
       .send({ device_id: "esp32-01", nombre: "Estantería A", firmware: "0.1.0" })
       .expect(200);
 
-    const res = await request(app.getHttpServer()).get("/devices/esp32-01").expect(200);
+    const res = await request(app.getHttpServer())
+      .get("/devices/esp32-01")
+      .set(await sesion.header())
+      .expect(200);
     expect(res.body).toMatchObject({ id: "esp32-01", estado: "online", firmware: "0.1.0" });
   });
 
   it("da 404 con un dispositivo que no existe", async () => {
-    const res = await request(app.getHttpServer()).get("/devices/nada").expect(404);
+    const res = await request(app.getHttpServer())
+      .get("/devices/nada")
+      .set(await sesion.header())
+      .expect(404);
     expect(res.body).toMatchObject({ statusCode: 404, path: "/devices/nada" });
   });
 
   it("guarda una detección y la devuelve", async () => {
     await request(app.getHttpServer()).post("/detections").send(deteccion).expect(201);
 
-    const res = await request(app.getHttpServer()).get("/detections").expect(200);
+    const res = await request(app.getHttpServer())
+      .get("/detections")
+      .set(await sesion.header())
+      .expect(200);
     expect(res.body.total).toBe(1);
     expect(res.body.items[0].etiqueta).toBe("caja");
   });
@@ -70,6 +83,7 @@ describe("API", () => {
 
     const res = await request(app.getHttpServer())
       .get("/detections?device_id=esp32-02")
+      .set(await sesion.header())
       .expect(200);
     expect(res.body.total).toBe(1);
   });
@@ -116,7 +130,10 @@ describe("x-device-token", () => {
       .expect(201);
   });
 
-  it("no pide token para leer", async () => {
-    await request(app.getHttpServer()).get("/detections").expect(200);
+  it("no pide token de dispositivo para leer", async () => {
+    await request(app.getHttpServer())
+      .get("/detections")
+      .set(await sesion.header())
+      .expect(200);
   });
 });

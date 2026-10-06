@@ -23,7 +23,8 @@ import {
   Vacio,
 } from "@/components/ui";
 import { haceCuanto } from "@/lib/fecha";
-import { mensajeError, puedeEditar, useStore } from "@/lib/store";
+import { mensajeError } from "@/api";
+import { puedeEditar, useStore } from "@/lib/store";
 import { tipo, useTema } from "@/lib/theme";
 
 type Filtro = "todos" | "reponer" | "agotados";

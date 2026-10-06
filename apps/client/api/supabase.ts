@@ -1,15 +1,10 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createClient, processLock } from "@supabase/supabase-js";
 import { AppState, Platform } from "react-native";
+import { config } from "./config";
 
-const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const clave = process.env.EXPO_PUBLIC_SUPABASE_KEY;
-
-if (!url || !clave) {
-  throw new Error("Faltan EXPO_PUBLIC_SUPABASE_URL y EXPO_PUBLIC_SUPABASE_KEY: cargalas en Doppler (proyecto mi_desroden) o en apps/client/.env");
-}
-
-export const supabase = createClient(url, clave, {
+/** Cliente de Supabase. Uso interno de la carpeta api/: el resto de la app no lo importa. */
+export const supabase = createClient(config.supabaseUrl, config.supabaseKey, {
   auth: {
     // En web la sesión va en localStorage (default); en el teléfono, AsyncStorage.
     ...(Platform.OS !== "web" ? { storage: AsyncStorage } : {}),

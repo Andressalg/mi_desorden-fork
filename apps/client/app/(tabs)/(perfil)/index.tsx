@@ -3,7 +3,7 @@ import Constants from "expo-constants";
 import { router } from "expo-router";
 import { StyleSheet, Switch, Text, View } from "react-native";
 import { Avatar, Contenido, Fila, Grupo, IconoCelda } from "@/components/ui";
-import { api } from "@/lib/api";
+import { dispositivos as dispositivosApi } from "@/api";
 import { confirmar } from "@/lib/confirmar";
 import { useStore } from "@/lib/store";
 import { tipo, useTema } from "@/lib/theme";
@@ -14,7 +14,7 @@ export default function Perfil() {
     useStore();
   const dispositivos = useQuery({
     queryKey: ["devices"],
-    queryFn: () => api.devices(),
+    queryFn: dispositivosApi.listar,
     retry: false,
   });
 
@@ -58,8 +58,8 @@ export default function Perfil() {
             titulo="Sin conexión con la API"
             subtitulo="Revisá que esté corriendo"
           />
-        ) : dispositivos.data?.items.length ? (
-          dispositivos.data.items.map((d) => (
+        ) : dispositivos.data?.length ? (
+          dispositivos.data.map((d) => (
             <Fila
               key={d.id}
               izquierda={

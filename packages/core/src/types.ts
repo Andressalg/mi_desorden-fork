@@ -97,3 +97,12 @@ export type ProductoInput = Pick<
   Producto,
   "nombre" | "categoria" | "cantidad" | "minimo" | "ubicacion" | "led"
 >;
+
+/** Lo que devuelve GET /auth/me: la sesión según el JWT de Supabase. */
+export interface UsuarioSesion {
+  id: string;
+  email: string | null;
+  aal: string | null;
+  sesion_id: string | null;
+  expira_en: string;
+}

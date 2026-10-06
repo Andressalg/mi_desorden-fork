@@ -28,6 +28,20 @@ describe("createClient", () => {
     expect(urls[0]).toBe("http://localhost:3000/detections?device_id=esp32%2001");
   });
 
+  it("manda el token de sesión si hay", async () => {
+    let auth = null as string | null;
+    globalThis.fetch = (async (_: RequestInfo | URL, init?: RequestInit) => {
+      auth = new Headers(init?.headers).get("Authorization");
+      return new Response(JSON.stringify({ items: [], total: 0 }));
+    }) as typeof fetch;
+
+    await createClient("http://localhost:3000", { token: async () => "abc" }).devices();
+    expect(auth).toBe("Bearer abc");
+
+    await createClient("http://localhost:3000", { token: () => null }).devices();
+    expect(auth).toBeNull();
+  });
+
   it("tira ApiError con el status cuando la API falla", async () => {
     espiarFetch(new Response("nope", { status: 500 }));
 
