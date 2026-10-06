@@ -24,7 +24,7 @@ export default function Registro() {
     try {
       // Si Supabase no pide confirmar el correo, la sesión arranca sola y el guard navega.
       if (await registrar(nombre, email, clave)) {
-        router.replace({ pathname: "/confirmar", params: { email: email.trim().toLowerCase() } });
+        router.replace({ pathname: "/confirmar", params: { email: email.trim().toLowerCase(), origen: "registro" } });
       }
     } catch (e) {
       setError((e as Error).message);

@@ -15,12 +15,15 @@ const ESPERA = 60; // Supabase deja reenviar el correo una vez por minuto
  */
 export default function Confirmar() {
   const t = useTema();
-  const { email = "" } = useLocalSearchParams<{ email?: string }>();
+  const { email = "", origen } = useLocalSearchParams<{ email?: string; origen?: string }>();
+  // Desde el registro el correo acaba de salir: hay que esperar para reenviar.
+  // Desde el login no se mandó nada ahora, así que se puede pedir uno ya.
+  const recienEnviado = origen === "registro";
   const { confirmarConCodigo, reenviarConfirmacion } = useStore();
   const [codigo, setCodigo] = useState("");
   const [aviso, setAviso] = useState<{ texto: string; error: boolean } | null>(null);
   const [confirmando, setConfirmando] = useState(false);
-  const [espera, setEspera] = useState(ESPERA);
+  const [espera, setEspera] = useState(recienEnviado ? ESPERA : 0);
 
   useEffect(() => {
     if (espera <= 0) return;
@@ -56,8 +59,12 @@ export default function Confirmar() {
 
   return (
     <MarcoAcceso
-      titulo="Revisá tu correo"
-      bajada={`Te mandamos un correo a ${email}. Tocá el enlace desde este teléfono o escribí el código.`}
+      titulo={recienEnviado ? "Revisá tu correo" : "Confirmá tu cuenta"}
+      bajada={
+        recienEnviado
+          ? `Te mandamos un correo a ${email}. Tocá el enlace desde este teléfono o escribí el código.`
+          : `${email} todavía no está confirmado. Pedí un correo nuevo y escribí el código.`
+      }
     >
       <Grupo pie={aviso?.texto} pieError={aviso?.error}>
         <CampoFila

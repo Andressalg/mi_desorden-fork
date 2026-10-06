@@ -18,6 +18,9 @@ export function mensajeError(e: unknown): string {
   if (/only request this after (\d+) seconds/i.test(msg)) {
     return `Esperá ${msg.match(/after (\d+) seconds/i)![1]} segundos antes de pedir otro correo.`;
   }
+  if (/error sending (confirmation|recovery|magic link)? ?email|smtp/i.test(msg)) {
+    return "No se pudo enviar el correo. Revisá la configuración de SMTP en Supabase.";
+  }
   if (/link is invalid or has expired|otp_expired|access_denied/i.test(msg)) {
     return "El enlace venció o ya se usó. Pedí otro correo o usá el código.";
   }
