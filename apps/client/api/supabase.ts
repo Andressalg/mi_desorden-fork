@@ -12,8 +12,10 @@ export const supabase = createClient(config.supabaseUrl, config.supabaseKey, {
     persistSession: true,
     detectSessionInUrl: false,
     lock: processLock,
-    // PKCE: el enlace del correo vuelve con ?code= y se canjea en la app (ver auth.completarDesdeEnlace).
-    flowType: "pkce",
+    // Implícito, no PKCE: con PKCE Supabase ata el código del correo al flujo y
+    // el código de 8 dígitos escrito a mano siempre da "inválido". El enlace
+    // vuelve con la sesión en el fragmento (ver auth.completarDesdeEnlace).
+    flowType: "implicit",
   },
 });
 
