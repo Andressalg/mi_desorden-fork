@@ -261,6 +261,20 @@ function useEstado() {
       await refrescarInventarios();
     },
 
+    /**
+     * Da acceso a la misma persona en varios inventarios a la vez. No corta en
+     * el primer error: devuelve en cuáles salió y en cuáles no.
+     */
+    async invitarEnVarios(invIds: string[], email: string, rol: Exclude<Rol, "dueño">) {
+      const resultados = await Promise.allSettled(
+        invIds.map((id) => miembros.invitar(id, email, rol)),
+      );
+      await refrescarInventarios();
+      const ok = invIds.filter((_, i) => resultados[i]!.status === "fulfilled");
+      const error = resultados.find((r): r is PromiseRejectedResult => r.status === "rejected");
+      return { ok, error: error ? (error.reason as Error) : null };
+    },
+
     async cambiarRol(invId: string, usuarioId: string, rol: Rol) {
       await miembros.cambiarRol(invId, usuarioId, rol);
       await refrescarInventarios();

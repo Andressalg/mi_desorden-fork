@@ -1,5 +1,5 @@
 import type { Miembro, Rol } from "@mi-desorden/core";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Animated, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { Icono, tocar, Vacio } from "@/components/ui";
 import {
@@ -26,7 +26,8 @@ type RolInvitable = Exclude<Rol, "dueño">;
 
 export default function Accesos() {
   const t = useTema();
-  const { activo, usuario, miRol, invitar, cambiarRol, quitarMiembro } = useStore();
+  const { inventarios, activo, usuario, miRol, invitarEnVarios, cambiarRol, quitarMiembro } =
+    useStore();
   const [abierto, setAbierto] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [rol, setRol] = useState<RolInvitable>("editor");
@@ -34,6 +35,20 @@ export default function Accesos() {
   const [aviso, setAviso] = useState<{ texto: string; error: boolean } | null>(null);
   const entrada = useEntrada(4);
   const elegirInventario = useSelectorInventario();
+
+  // Inventarios donde puedo invitar (soy dueño) y a cuáles va la invitación.
+  const propios = inventarios.filter((i) =>
+    i.miembros.some((m) => m.usuario_id === usuario?.id && m.rol === "dueño"),
+  );
+  const [destinos, setDestinos] = useState<string[]>([]);
+  const activoId = activo?.id;
+  const activoPropio = propios.some((i) => i.id === activoId);
+  // Al cambiar de inventario, la invitación arranca apuntando al que estás viendo.
+  useEffect(() => {
+    setDestinos(activoId && activoPropio ? [activoId] : []);
+  }, [activoId, activoPropio]);
+  const alternar = (id: string) =>
+    setDestinos((d) => (d.includes(id) ? d.filter((x) => x !== id) : [...d, id]));
 
   if (!activo) {
     return (
@@ -55,19 +70,36 @@ export default function Accesos() {
   const emailValido = /^\S+@\S+\.\S+$/.test(correo);
   const fallar = (e: Error) => setAviso({ texto: e.message, error: true });
 
+  // Con un solo inventario propio no hay lista: la invitación va a ese.
+  const elegidos = propios.length === 1 ? propios : propios.filter((i) => destinos.includes(i.id));
+  const puedeEnviar = emailValido && elegidos.length > 0 && !enviando;
+
   async function enviar() {
-    if (!emailValido || !activo || enviando) return;
-    if (activo.miembros.some((m) => m.email === correo)) {
-      return setAviso({ texto: `${correo} ya tiene acceso.`, error: true });
+    if (!puedeEnviar) return;
+    // Los que ya lo tienen con el mismo rol no hace falta mandarlos.
+    const pendientes = elegidos.filter(
+      (i) => !i.miembros.some((m) => m.email === correo && m.rol === rol),
+    );
+    if (!pendientes.length) {
+      return setAviso({ texto: `${correo} ya tiene ese acceso.`, error: true });
     }
     setEnviando(true);
     setAviso(null);
     try {
-      await invitar(activo.id, correo, rol);
-      setAviso({ texto: `Listo: ${correo} ya tiene acceso.`, error: false });
+      const { ok, error } = await invitarEnVarios(
+        pendientes.map((i) => i.id),
+        correo,
+        rol,
+      );
+      const nombres = pendientes.filter((i) => ok.includes(i.id)).map((i) => `“${i.nombre}”`);
+      if (error && !ok.length) return fallar(error);
+      setAviso({
+        texto:
+          `Listo: ${correo} ya puede ver ${enLista(nombres)}.` +
+          (error ? ` En los otros no se pudo: ${error.message}` : ""),
+        error: !!error,
+      });
       setEmail("");
-    } catch (e) {
-      fallar(e as Error);
     } finally {
       setEnviando(false);
     }
@@ -201,12 +233,14 @@ export default function Accesos() {
         </Tarjeta>
       </Seccion>
 
-      {soyDueño ? (
+      {propios.length ? (
         <Seccion
-          titulo="Invitar"
+          titulo={propios.length > 1 ? "Invitar a" : "Invitar"}
           pie={
             aviso?.texto ??
-            "La persona tiene que tener cuenta. Los editores agregan y cambian productos; los lectores solo miran."
+            (propios.length > 1
+              ? "Marcá uno o varios inventarios. La persona tiene que tener cuenta. Los editores agregan y cambian productos; los lectores solo miran."
+              : "La persona tiene que tener cuenta. Los editores agregan y cambian productos; los lectores solo miran.")
           }
           pieColor={colorAviso}
           style={entrada(3)}
@@ -228,6 +262,39 @@ export default function Accesos() {
                 style={[s.correoInput, { color: t.texto }]}
               />
             </View>
+            {propios.length > 1 ? (
+              <View style={[s.destinos, { borderColor: t.separador }]}>
+                {propios.map((i, n) => {
+                  const marcado = destinos.includes(i.id);
+                  return (
+                    <View key={i.id}>
+                      {n > 0 ? <Separador sangria={44} /> : null}
+                      <Pressable
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked: marcado }}
+                        onPress={() => (tocar(), alternar(i.id), setAviso(null))}
+                        style={({ pressed }) => [s.destino, pressed && { opacity: 0.6 }]}
+                      >
+                        <Icono
+                          sf={marcado ? "checkmark.circle.fill" : "circle"}
+                          ion={marcado ? "checkmark-circle" : "ellipse-outline"}
+                          size={22}
+                          color={marcado ? t.tinte : t.textoTer}
+                        />
+                        <Text style={[s.destinoTexto, { color: t.texto }]} numberOfLines={1}>
+                          {i.nombre}
+                        </Text>
+                        {i.lugar ? (
+                          <Text style={[s.sub, { color: t.textoSec }]} numberOfLines={1}>
+                            {i.lugar}
+                          </Text>
+                        ) : null}
+                      </Pressable>
+                    </View>
+                  );
+                })}
+              </View>
+            ) : null}
             <View style={{ flexDirection: "row", gap: 6 }}>
               <View style={{ flex: 1 }}>
                 <SegmentadoAnimado<RolInvitable>
@@ -243,14 +310,14 @@ export default function Accesos() {
               </View>
               <Pressable
                 accessibilityRole="button"
-                accessibilityState={{ disabled: !emailValido, busy: enviando }}
-                disabled={!emailValido || enviando}
+                accessibilityState={{ disabled: !puedeEnviar, busy: enviando }}
+                disabled={!puedeEnviar}
                 onPress={() => (tocar(), enviar())}
                 style={({ pressed }) => [
                   s.darAcceso,
                   {
                     backgroundColor: t.tinte,
-                    opacity: !emailValido || enviando ? 0.4 : pressed ? 0.85 : 1,
+                    opacity: !puedeEnviar ? 0.4 : pressed ? 0.85 : 1,
                   },
                 ]}
               >
@@ -279,6 +346,13 @@ function Insignia({ rol, t }: { rol: Rol; t: Tema }) {
       </Text>
     </View>
   );
+}
+
+/** "A", "A y B", "A, B y C". */
+function enLista(nombres: string[]) {
+  return nombres.length < 2
+    ? (nombres[0] ?? "")
+    : `${nombres.slice(0, -1).join(", ")} y ${nombres.at(-1)}`;
 }
 
 function hexA(hex: string, a: number) {
@@ -339,6 +413,18 @@ const s = StyleSheet.create({
   quitar: { height: 34, paddingHorizontal: 12, borderRadius: 10, justifyContent: "center" },
   quitarTexto: { fontSize: 13, fontWeight: "600" },
   invitar: { padding: 6, gap: 6 },
+  destinos: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  destino: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    minHeight: 44,
+    paddingHorizontal: 12,
+  },
+  destinoTexto: { flexShrink: 1, fontSize: 17, letterSpacing: -0.4 },
   correo: {
     flexDirection: "row",
     alignItems: "center",
