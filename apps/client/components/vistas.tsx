@@ -1,11 +1,28 @@
 import type { Inventario } from "@mi-desorden/core";
+import {
+  Button,
+  Host,
+  HStack,
+  Image as ImagenSF,
+  Menu,
+  Picker,
+  Section,
+  Text as TextoSF,
+} from "@expo/ui/swift-ui";
+import {
+  font,
+  foregroundStyle,
+  kerning,
+  lineLimit,
+  pickerStyle,
+  tag,
+} from "@expo/ui/swift-ui/modifiers";
 import { useQuery } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useRef, useState, type ReactNode } from "react";
 import {
   AccessibilityInfo,
-  ActionSheetIOS,
   Alert,
   Animated,
   Easing,
@@ -158,6 +175,8 @@ export function Encabezado({
       ) : null}
     </View>
   );
+  // En iOS el selector es el menú nativo; en Android/web, un Alert.
+  const menuIos = Platform.OS === "ios" && !!alTocar;
   const tocable = (hijo: ReactNode, hint: string) => (
     <Pressable
       accessibilityRole="button"
@@ -175,10 +194,20 @@ export function Encabezado({
   return (
     <Animated.View style={[s.encabezado, style]}>
       <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-        {sobreTocable && lineaSobre ? tocable(lineaSobre, "Cambiar de inventario") : lineaSobre}
-        {tituloTocable
-          ? tocable(lineaTitulo, "Cambiar de inventario, crear uno o eliminarlo")
-          : lineaTitulo}
+        {sobreTocable && sobre && menuIos ? (
+          <MenuInventario texto={sobre} variante="sobre" />
+        ) : sobreTocable && lineaSobre ? (
+          tocable(lineaSobre, "Cambiar de inventario")
+        ) : (
+          lineaSobre
+        )}
+        {tituloTocable && menuIos ? (
+          <MenuInventario texto={titulo} variante="titulo" />
+        ) : tituloTocable ? (
+          tocable(lineaTitulo, "Cambiar de inventario, crear uno o eliminarlo")
+        ) : (
+          lineaTitulo
+        )}
       </View>
       {accion}
     </Animated.View>
@@ -248,9 +277,84 @@ export function useMenuInventario() {
 }
 
 /**
- * Selector de inventario: hoja de acciones nativa con los otros inventarios,
- * "Nuevo inventario…" y eliminar/salir del actual. Reemplaza las píldoras, que
- * repetían el nombre que ya está en el título.
+ * Menú desplegable nativo (SwiftUI, como el título de Notas o Archivos) para
+ * cambiar de inventario, crear uno o eliminar/salir del actual. Solo iOS: en
+ * Android y web el encabezado usa el selector con Alert.
+ */
+function MenuInventario({
+  texto,
+  variante,
+}: {
+  texto: string;
+  /** "titulo": el título grande (Inventario). "sobre": la línea chica de arriba (Accesos). */
+  variante: "titulo" | "sobre";
+}) {
+  const t = useTema();
+  const { inventarios, activo, usuario, seleccionarInventario } = useStore();
+  const menu = useMenuInventario();
+  const dueño =
+    !!activo && activo.miembros.some((m) => m.rol === "dueño" && m.usuario_id === usuario?.id);
+  const grande = variante === "titulo";
+
+  const etiqueta = (
+    <HStack spacing={grande ? 6 : 4} alignment="center">
+      <TextoSF
+        modifiers={[
+          font({ size: grande ? 34 : 13, weight: grande ? "bold" : "regular" }),
+          kerning(grande ? -0.8 : 0),
+          foregroundStyle(grande ? t.texto : t.tinte),
+          lineLimit(1),
+        ]}
+      >
+        {texto}
+      </TextoSF>
+      <ImagenSF
+        systemName="chevron.down"
+        size={grande ? 18 : 11}
+        color={grande ? t.textoTer : t.tinte}
+        modifiers={[font({ size: grande ? 18 : 11, weight: "bold" })]}
+      />
+    </HStack>
+  );
+
+  return (
+    <Host matchContents style={{ alignSelf: "flex-start", maxWidth: "100%" }}>
+      <Menu label={etiqueta}>
+        <Picker
+          label="Inventarios"
+          selection={activo?.id ?? null}
+          onSelectionChange={(id: string | null) => id && seleccionarInventario(id)}
+          modifiers={[pickerStyle("inline")]}
+        >
+          {inventarios.map((i) => (
+            <TextoSF key={i.id} modifiers={[tag(i.id)]}>
+              {i.nombre}
+            </TextoSF>
+          ))}
+        </Picker>
+        <Section>
+          <Button
+            label="Nuevo inventario"
+            systemImage="plus"
+            onPress={() => router.push("/inventario-nuevo")}
+          />
+          {activo ? (
+            <Button
+              role="destructive"
+              label={dueño ? "Eliminar inventario" : "Salir del inventario"}
+              systemImage={dueño ? "trash" : "rectangle.portrait.and.arrow.right"}
+              onPress={() => menu(activo)}
+            />
+          ) : null}
+        </Section>
+      </Menu>
+    </Host>
+  );
+}
+
+/**
+ * Selector de inventario para Android y web (en iOS va MenuInventario): los
+ * otros inventarios, "Nuevo inventario…" y eliminar/salir del actual.
  */
 export function useSelectorInventario() {
   const { inventarios, activo, usuario, seleccionarInventario } = useStore();
@@ -267,28 +371,6 @@ export function useSelectorInventario() {
         : `Salir de «${activo.nombre}»`
       : undefined;
 
-    if (Platform.OS === "ios") {
-      const opciones = [
-        ...otros.map((i) => i.nombre),
-        "Nuevo inventario…",
-        ...(etiquetaQuitar ? [etiquetaQuitar] : []),
-        "Cancelar",
-      ];
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          title: activo ? `Estás en «${activo.nombre}»` : undefined,
-          options: opciones,
-          cancelButtonIndex: opciones.length - 1,
-          destructiveButtonIndex: etiquetaQuitar ? opciones.length - 2 : undefined,
-        },
-        (i) => {
-          if (i < otros.length) return seleccionarInventario(otros[i]!.id);
-          if (i === otros.length) return nuevo();
-          if (etiquetaQuitar && i === otros.length + 1) quitar?.();
-        },
-      );
-      return;
-    }
     // Android / web: Alert admite pocos botones; alcanza para el MVP.
     Alert.alert(activo ? activo.nombre : "Inventarios", undefined, [
       ...otros
