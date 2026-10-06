@@ -35,12 +35,5 @@ La app confirma el correo de dos formas (`apps/client/app/(auth)/confirmar.tsx` 
 Configuración en el dashboard:
 
 - **Authentication → URL Configuration → Redirect URLs**: agregar `midesorden://**` (development build y app instalada) y `exp://**` (Expo Go). Sin esto, Supabase manda el enlace a la Site URL y no vuelve a la app.
-- **Authentication → Emails → Confirm signup**: que la plantilla incluya el código, por ejemplo:
-
-  ```html
-  <h2>Confirmá tu cuenta en mi_desorden</h2>
-  <p>Tu código: <strong>{{ .Token }}</strong></p>
-  <p>O tocá el enlace desde el teléfono: <a href="{{ .ConfirmationURL }}">Confirmar cuenta</a></p>
-  ```
-
+- **Authentication → Emails → Confirm signup**: asunto `Tu código para mi_desorden` y como cuerpo el HTML de [`templates/confirmar-cuenta.html`](templates/confirmar-cuenta.html). Trae el código de 6 dígitos (`{{ .Token }}`) y el botón con el enlace (`{{ .ConfirmationURL }}`), y se adapta a modo oscuro.
 - **Confirm email** puede quedar prendido: la app maneja el "revisá tu correo", el reenvío (1 por minuto) y el login de una cuenta sin confirmar.
