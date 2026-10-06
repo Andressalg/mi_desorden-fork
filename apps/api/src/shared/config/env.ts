@@ -1,4 +1,4 @@
-import { normalizarOrigen } from "../seguridad/origenes";
+import { normalizarOrigen } from "../../utils/cors";
 
 /** Valida y normaliza las variables de entorno al arrancar. */
 export function validarEnv(crudo: Record<string, unknown>) {

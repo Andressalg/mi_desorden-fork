@@ -7,6 +7,7 @@ import {
   Logger,
 } from "@nestjs/common";
 import type { Request, Response } from "express";
+import { ahoraIso } from "../../utils/fecha";
 
 export type ErrorResponse = {
   statusCode: number;
@@ -45,7 +46,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       statusCode: status,
       error: HttpStatus[status] ?? "Error",
       message,
-      timestamp: new Date().toISOString(),
+      timestamp: ahoraIso(),
       path: req.url,
     };
     res.status(status).json(body);

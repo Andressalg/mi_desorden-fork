@@ -1,6 +1,7 @@
 import { Controller, Get } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { Publico } from "../../shared/auth/publico.decorator";
+import { ahoraIso } from "../../utils";
 
 @ApiTags("health")
 @Publico()
@@ -8,6 +9,6 @@ import { Publico } from "../../shared/auth/publico.decorator";
 export class HealthController {
   @Get()
   check() {
-    return { ok: true, ts: new Date().toISOString() };
+    return { ok: true, ts: ahoraIso() };
   }
 }
