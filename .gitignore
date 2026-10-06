@@ -8,13 +8,6 @@ build/
 .expo/
 web-build/
 
-# firmware (ESP-IDF)
-apps/firmware/build/
-apps/firmware/sdkconfig
-apps/firmware/sdkconfig.old
-apps/firmware/managed_components/
-apps/firmware/dependencies.lock
-
 # modelos y datasets (no van al repo)
 models/*.tflite
 models/*.onnx

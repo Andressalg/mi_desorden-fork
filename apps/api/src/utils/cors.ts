@@ -3,8 +3,8 @@ import type { NextFunction, Request, Response } from "express";
 import { ahoraIso } from "./fecha";
 
 /**
- * Lista blanca de orígenes (CORS). Solo aplica a navegadores: la app móvil y el
- * ESP32 no mandan Origin y no se ven afectados.
+ * Lista blanca de orígenes (CORS). Solo aplica a navegadores: la app móvil no
+ * manda Origin y no se ve afectada.
  */
 
 /** Normaliza y valida un origen: esquema + host [+ puerto], sin path. */
@@ -29,7 +29,7 @@ export function crearFiltroOrigen(permitidos: string[]): FiltroOrigen {
   if (permitidos.includes("*")) return () => true;
   const set = new Set(permitidos);
   return (origen) => {
-    if (!origen) return true; // sin Origin: app móvil, ESP32, curl
+    if (!origen) return true; // sin Origin: app móvil, curl
     try {
       return set.has(new URL(origen).origin) && new URL(origen).origin === origen;
     } catch {

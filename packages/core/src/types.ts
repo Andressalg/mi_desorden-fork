@@ -1,41 +1,29 @@
-/** Tipos compartidos entre la API, el cliente Expo y el firmware. */
+/** Tipos compartidos entre la API y el cliente Expo. */
 
-/** Un ESP32-S3 con cámara y micrófono. */
-export interface Device {
-  id: string;
-  nombre: string;
-  /** Dónde está puesto: "depósito", "garage", "cuarto". */
-  ubicacion: string | null;
-  estado: DeviceEstado;
-  /** Último heartbeat en ISO 8601. */
-  visto_en: string | null;
-  firmware: string | null;
-}
-
-export type DeviceEstado = "online" | "offline" | "durmiendo";
-
-/** Cada cosa que el dispositivo cree haber visto o escuchado. */
+/** Algo que la cámara del teléfono reconoció. */
 export interface Detection {
   id: string;
-  device_id: string;
+  /** Quién la hizo (sesión de Supabase). */
+  usuario_id: string;
+  /** Inventario que se estaba mirando, si había uno abierto. */
+  inventario_id: string | null;
+  /** Producto con el que se asoció, si se reconoció uno del inventario. */
+  producto_id: string | null;
   /** Qué se detectó: "caja", "bolsa", "herramienta". */
   etiqueta: string;
   /** 0 a 1. */
   confianza: number;
-  fuente: DetectionFuente;
   /** Recorte del frame, si se guardó. */
   imagen_url: string | null;
   creada_en: string;
 }
 
-export type DetectionFuente = "camara" | "microfono";
-
-/** Lo que el firmware manda en cada evento. */
+/** Lo que manda la app al reconocer algo con la cámara. */
 export interface DetectionInput {
-  device_id: string;
+  inventario_id?: string | null;
+  producto_id?: string | null;
   etiqueta: string;
   confianza: number;
-  fuente: DetectionFuente;
   imagen_url?: string | null;
 }
 

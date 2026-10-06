@@ -3,27 +3,25 @@
 **Documentación:** [Índice](README.md)
 
 ```
-┌────────────────────┐        POST /devices/heartbeat        ┌──────────────────┐
-│  apps/firmware     │ ────────────────────────────────────> │   apps/api       │
-│  ESP32-S3          │        POST /detections               │   NestJS (Bun)   │
-│  cámara + mic      │                                       │                  │
-└────────────────────┘                                       └────────┬─────────┘
-                                                                      │ GET /devices
-                                                                      │ GET /detections
-                                                             ┌────────┴─────────┐
-                                                             │  apps/client     │
-                                                             │  Expo            │
-                                                             └──────────────────┘
+┌──────────────────────────┐   auth · inventarios · productos   ┌──────────────────┐
+│  apps/client (Expo)      │ ─────────────────────────────────> │  Supabase        │
+│  cámara del teléfono     │ <───────── Realtime ────────────── │  Postgres + RLS  │
+└────────────┬─────────────┘                                    └──────────────────┘
+             │ Bearer <access token de Supabase>
+             ▼
+┌──────────────────────────┐
+│  apps/api (NestJS)       │  detecciones · /auth/me · health
+│  Vercel, /api/v1         │
+└──────────────────────────┘
 ```
 
 ## Workspaces
 
 | Workspace | Qué es |
 |-----------|--------|
-| `apps/firmware` | ESP-IDF v5 en C. Conecta WiFi, inicializa cámara e I2S, manda heartbeat y detecciones. |
-| `apps/api` | NestJS sobre Bun, modular (ver abajo). Recibe heartbeats y detecciones del ESP32. Swagger en `/docs`. |
+| `apps/api` | NestJS sobre Bun, modular (ver abajo). Guarda las detecciones de la cámara del teléfono. Swagger en `/api/v1/docs`. |
 | `apps/client` | Expo + Expo Router. Tabs nativas (Liquid Glass en iOS 26+): inventario, cámara, accesos, perfil. Auth, inventarios y productos contra Supabase con Realtime. |
-| `packages/core` | Tipos (`Device`, `Detection`) y el cliente HTTP que usa el cliente Expo. |
+| `packages/core` | Tipos (`Detection`, `Producto`, `Inventario`…) y el cliente HTTP que usa el cliente Expo. |
 
 ## Estructura del cliente
 
@@ -35,7 +33,7 @@ apps/client
 │   ├── http.ts         cliente de la API de Nest, con el access token de Supabase
 │   ├── auth.ts         registro, login, sesión
 │   ├── inventarios.ts · productos.ts · miembros.ts   datos (Supabase + RLS)
-│   ├── dispositivos.ts ESP32 y detecciones (API de Nest)
+│   ├── detecciones.ts  lo que reconoce la cámara (API de Nest)
 │   ├── realtime.ts     cambios en vivo + presencia
 │   ├── errores.ts      errores del backend → mensajes para mostrar
 │   └── index.ts        lo único que importa el resto: `import { productos } from "@/api"`
@@ -64,7 +62,6 @@ apps/api/src
 ├── shared/              lo que vive dentro de Nest: config/env, auth (guard de sesión), guards, filters
 └── modules/
     ├── health/          GET /health
-    ├── devices/         controller · service · repository · dto
     └── detections/      controller · service · repository · dto
 ```
 
@@ -83,7 +80,7 @@ Proyecto de Vercel con **Root Directory = `apps/api`**. `vercel.json` usa `frame
 
 > Sin `crons` en `vercel.json`: el plan Hobby solo permite crons diarios y uno más frecuente hace fallar el deploy entero. Para mantener la función tibia, usar un monitor externo (UptimeRobot, Better Stack) contra `/api/v1/health/liveness`.
 
-`bun run build` empaqueta `src/serverless.ts` en `dist/serverless.js` (CommonJS para Node). Variables en Vercel (vía Doppler): `NODE_ENV=production`, `DEVICE_TOKEN` (obligatoria en producción), `EXPO_PUBLIC_SUPABASE_URL` o `SUPABASE_URL`, `CORS_ORIGIN`. `ENABLE_SWAGGER=true` para ver `/api/v1/docs` fuera de desarrollo.
+`bun run build` empaqueta `src/serverless.ts` en `dist/serverless.js` (CommonJS para Node). Variables en Vercel: `SUPABASE_URL` (o `EXPO_PUBLIC_SUPABASE_URL`, la URL **https**) y, si hace falta, `CORS_ORIGIN`. `ENABLE_SWAGGER=true` para ver `/api/v1/docs` fuera de desarrollo.
 
 ## Endpoints
 
@@ -91,25 +88,17 @@ Proyecto de Vercel con **Root Directory = `apps/api`**. `vercel.json` usa `frame
 |--------|------|----------|
 | GET | `/api/v1/health` | Healthcheck |
 | GET | `/api/v1/auth/me` | La sesión según el token (requiere Bearer) |
-| GET | `/api/v1/devices` | Lista de dispositivos |
-| GET | `/api/v1/devices/:id` | Un dispositivo |
-| POST | `/api/v1/devices/heartbeat` | El ESP32 avisa que está vivo |
-| GET | `/api/v1/detections` | Historial (filtra por `device_id`) |
-| POST | `/api/v1/detections` | El ESP32 registra una detección |
+| GET | `/api/v1/detections` | Mis detecciones (filtra por `inventario_id`) |
+| POST | `/api/v1/detections` | La app registra lo que reconoció la cámara |
 
 ## Persistencia
 
 - **App** → Supabase directo (auth, inventarios, productos) con RLS y Realtime. Esquema en `supabase/migrations/`.
-- **API** → todavía en memoria (`DevicesRepository`, `DetectionsRepository`): se pierde al reiniciar. El paso siguiente es que esos repositories escriban en Supabase (ver [DECISIONES.md](DECISIONES.md)).
+- **API** → todavía en memoria (`DetectionsRepository`): se pierde al reiniciar. El paso siguiente es que esos repositories escriban en Supabase (ver [DECISIONES.md](DECISIONES.md)).
 
 ## Autenticación
 
-Dos tipos de cliente, dos credenciales:
-
-| Quién | Cómo se autentica | Dónde se valida |
-|-------|-------------------|-----------------|
-| App (usuarios) | `Authorization: Bearer <access_token de Supabase>` | `SesionGuard`, global |
-| ESP32 | `x-device-token` | `DeviceTokenGuard` en las rutas `@Publico()` del firmware |
+La app manda `Authorization: Bearer <access_token de Supabase>`; lo valida `SesionGuard`, global.
 
 `SesionGuard` (en `apps/api/src/shared/auth/`):
 
@@ -127,8 +116,8 @@ Además, global: `helmet` (headers de seguridad) y `@nestjs/throttler` (120 requ
   - `staging`: solo `https://mi-desorden.vercel.app/api/v1` (o el alias `mi-desorden-guzzo1309s-projects.vercel.app`). Ni previews, ni http, ni otros dominios.
   - `development`: `http://` a localhost o IP de la red local, en `/api/v1`.
   - `production`: ninguna todavía.
-- **API → navegadores** (CORS, `apps/api/src/utils/cors.ts`): un `Origin` fuera de `CORS_ORIGIN` recibe **403**. Requests sin `Origin` (app móvil, ESP32, curl) no se ven afectadas.
+- **API → navegadores** (CORS, `apps/api/src/utils/cors.ts`): un `Origin` fuera de `CORS_ORIGIN` recibe **403**. Requests sin `Origin` (app móvil, curl) no se ven afectadas.
 
-Rutas sin sesión, marcadas con `@Publico()`: `GET /api/v1/health`, `POST /api/v1/devices/heartbeat`, `POST /api/v1/detections`. `GET /api/v1/auth/me` devuelve la sesión del token.
+Rutas sin sesión, marcadas con `@Publico()`: solo `GET /api/v1/health`. `GET /api/v1/auth/me` devuelve la sesión del token.
 
 > En Vercel (`VERCEL=1`) se activa `trust proxy`, así `req.ip` es la del cliente y no la del proxy.
