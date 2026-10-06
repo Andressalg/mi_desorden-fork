@@ -79,7 +79,20 @@ export default function Inventario() {
   if (!cargando && !errorCarga && !activo) {
     return (
       <Vista>
-        <Encabezado titulo="Inventario" style={entrada(0)} />
+        <Encabezado
+          sobre={enVivo ? "En vivo" : "En vivo pausado"}
+          punto={enVivo ? t.verde : "#8E8E93"}
+          titulo="Inventario"
+          accion={
+            <BotonRedondo
+              sf="plus"
+              ion="add"
+              etiqueta="Crear inventario"
+              onPress={() => router.push("/inventario-nuevo")}
+            />
+          }
+          style={entrada(0)}
+        />
         <Vacio
           sf="shippingbox"
           ion="cube-outline"

@@ -6,6 +6,7 @@ import {
   Animated,
   Easing,
   Image,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -83,7 +84,15 @@ export function Vista({
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: t.fondo }}
-      contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: insets.bottom + 120 }}
+      // En iOS las tabs nativas ajustan solas los márgenes del primer scroll (zona segura
+      // arriba, tab bar abajo): si además se suma insets.top, el título baja ~60 pt.
+      // En Android no lo hacen, así que ahí van a mano.
+      contentInsetAdjustmentBehavior="automatic"
+      contentContainerStyle={
+        Platform.OS === "ios"
+          ? { paddingTop: 8, paddingBottom: 32 }
+          : { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 120 }
+      }
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="interactive"
       showsVerticalScrollIndicator={false}
