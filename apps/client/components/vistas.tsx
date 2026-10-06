@@ -1,8 +1,11 @@
+import type { Inventario } from "@mi-desorden/core";
 import { useQuery } from "@tanstack/react-query";
+import * as Haptics from "expo-haptics";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useRef, useState, type ReactNode } from "react";
 import {
   AccessibilityInfo,
+  Alert,
   Animated,
   Easing,
   Image,
@@ -19,6 +22,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { productos as productosApi } from "@/api";
 import { ANCHO_LECTURA, Icono, tocar } from "@/components/ui";
+import { confirmar } from "@/lib/confirmar";
 import { useStore } from "@/lib/store";
 import { useTema } from "@/lib/theme";
 
@@ -166,6 +170,40 @@ export function BotonRedondo({
   );
 }
 
+/**
+ * Menú de un inventario (se abre manteniendo presionado): el dueño lo puede
+ * eliminar; el resto, salir de él.
+ */
+export function useMenuInventario() {
+  const { usuario, eliminarInventario, salirDeInventario } = useStore();
+  const avisarError = (titulo: string) => (e: Error) => Alert.alert(titulo, e.message);
+  return (inv: Inventario) => {
+    if (Platform.OS !== "web")
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    const dueño = inv.miembros.find((m) => m.usuario_id === usuario?.id)?.rol === "dueño";
+    if (dueño) {
+      const otros = inv.miembros.length - 1;
+      confirmar(
+        `¿Eliminar “${inv.nombre}”?`,
+        `Se borran sus ${inv.total_productos} productos y sus fotos` +
+          (otros > 0
+            ? `, y ${otros === 1 ? "la otra persona deja" : `las otras ${otros} personas dejan`} de verlo`
+            : "") +
+          ". No se puede deshacer.",
+        "Eliminar",
+        () => void eliminarInventario(inv.id).catch(avisarError("No se pudo eliminar")),
+      );
+    } else {
+      confirmar(
+        `¿Salir de “${inv.nombre}”?`,
+        "Vas a dejar de verlo. El dueño te puede volver a invitar.",
+        "Salir",
+        () => void salirDeInventario(inv.id).catch(avisarError("No se pudo salir")),
+      );
+    }
+  };
+}
+
 /** Píldoras para cambiar de inventario; el activo va en negro (blanco en modo oscuro). */
 export function PildorasInventario({
   conNuevo = true,
@@ -176,6 +214,7 @@ export function PildorasInventario({
 }) {
   const t = useTema();
   const { inventarios, activo, seleccionarInventario } = useStore();
+  const menu = useMenuInventario();
   return (
     <Animated.View style={style}>
       <ScrollView
@@ -191,7 +230,10 @@ export function PildorasInventario({
               key={inv.id}
               accessibilityRole="tab"
               accessibilityState={{ selected: sel }}
+              accessibilityHint="Mantené presionado para eliminarlo o salir"
               onPress={() => (tocar(), seleccionarInventario(inv.id))}
+              onLongPress={() => menu(inv)}
+              delayLongPress={400}
               style={({ pressed }) => [
                 s.pildora,
                 { backgroundColor: sel ? t.texto : t.celda, opacity: pressed ? 0.75 : 1 },

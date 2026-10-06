@@ -52,4 +52,20 @@ export const inventarios = {
     siFalla(error);
     return data!.id as string;
   },
+
+  /**
+   * Borra el inventario con sus productos y miembros (cascade en la base).
+   * Primero las fotos: después de borrar la fila ya no somos miembros y
+   * Storage no nos dejaría tocarlas. Solo el dueño (lo valida RLS).
+   */
+  async eliminar(id: string) {
+    const { data: fotos } = await supabase.storage.from("productos").list(id, { limit: 1000 });
+    if (fotos?.length)
+      await supabase.storage.from("productos").remove(fotos.map((f) => `${id}/${f.name}`));
+
+    const { data, error } = await supabase.from("inventarios").delete().eq("id", id).select("id");
+    siFalla(error);
+    // Con RLS, borrar sin permiso no da error: simplemente no borra nada.
+    if (!data?.length) throw new Error("Solo el dueño puede eliminar el inventario.");
+  },
 };

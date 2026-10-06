@@ -229,6 +229,24 @@ function useEstado() {
       await refrescarInventarios();
     },
 
+    async eliminarInventario(invId: string) {
+      await inventariosApi.eliminar(invId);
+      if (activoId === invId) {
+        setActivoId(null);
+        AsyncStorage.removeItem(CLAVE_ACTIVO).catch(() => {});
+      }
+      qc.removeQueries({ queryKey: ["productos", invId] });
+      await refrescarInventarios();
+    },
+
+    /** Dejar un inventario ajeno (la base deja que cualquiera se quite a sí mismo). */
+    async salirDeInventario(invId: string) {
+      if (!uid) return;
+      await miembros.quitar(invId, uid);
+      if (activoId === invId) setActivoId(null);
+      await refrescarInventarios();
+    },
+
     async quitarMiembro(invId: string, usuarioId: string) {
       await miembros.quitar(invId, usuarioId);
       await refrescarInventarios();
