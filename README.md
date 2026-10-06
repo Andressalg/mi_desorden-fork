@@ -41,7 +41,7 @@ doppler setup   # proyecto mi_desroden → elegí el entorno al que le vas a peg
 | Config | La app usa |
 |--------|------------|
 | `dev_personal` / `dev` | La API de tu máquina (`localhost:3000`), que levanta `bun dev` |
-| `stg` | La API desplegada en Vercel (`mi-desorden.vercel.app`) |
+| `stg` / `prd` | La API desplegada en Vercel (`mi-desorden.vercel.app`) |
 
 Para cambiar de entorno, `doppler setup` de nuevo. `bun dev` te muestra antes de arrancar a qué API y a qué Supabase le estás pegando, y frena si la config no sirve.
 
