@@ -65,7 +65,7 @@ export const auth = {
     siFalla(error);
   },
 
-  /** Confirma la cuenta con el código de 6 dígitos del correo e inicia la sesión. */
+  /** Confirma la cuenta con el código del correo (6 a 10 dígitos, según Supabase) e inicia la sesión. */
   async confirmarConCodigo(email: string, codigo: string) {
     const { error } = await supabase.auth.verifyOtp({
       email: normalizar(email),
