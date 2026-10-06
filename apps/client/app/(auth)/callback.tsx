@@ -1,4 +1,5 @@
-import { router, useLocalSearchParams } from "expo-router";
+import * as Linking from "expo-linking";
+import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { MarcoAcceso } from "@/components/Acceso";
@@ -7,20 +8,24 @@ import { useStore } from "@/lib/store";
 
 /**
  * A esta ruta vuelve el enlace del correo de confirmación
- * (midesorden://callback?code=…). Canjea el código por la sesión; con la
+ * (midesorden://callback#access_token=…). Se lee la URL completa, porque la
+ * sesión viene en el fragmento y los params de la ruta no lo incluyen. Con la
  * sesión iniciada, el guard del layout raíz lleva solo a las tabs.
  */
 export default function Callback() {
-  const params = useLocalSearchParams<{ code?: string; error_description?: string }>();
+  // useLinkingURL guarda del lado nativo el último enlace, aunque haya llegado
+  // antes de montar esta pantalla (es justo el enlace que navegó hasta acá).
+  const url = Linking.useLinkingURL();
   const { completarDesdeEnlace } = useStore();
   const [error, setError] = useState<string | null>(null);
   const hecho = useRef(false);
 
   useEffect(() => {
-    if (hecho.current) return; // el código sirve una sola vez
+    // Solo el enlace del correo, no el del development client; los tokens sirven una vez.
+    if (!url || !url.includes("callback") || hecho.current) return;
     hecho.current = true;
-    completarDesdeEnlace(params).catch((e: Error) => setError(e.message));
-  }, [params, completarDesdeEnlace]);
+    completarDesdeEnlace(url).catch((e: Error) => setError(e.message));
+  }, [url, completarDesdeEnlace]);
 
   if (error) {
     return (

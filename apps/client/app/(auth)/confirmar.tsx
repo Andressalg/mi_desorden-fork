@@ -7,11 +7,14 @@ import { useStore } from "@/lib/store";
 import { tipo, useTema } from "@/lib/theme";
 
 const ESPERA = 60; // Supabase deja reenviar el correo una vez por minuto
+/** Supabase deja configurar el largo del código entre 6 y 10 (este proyecto usa 8). */
+const MIN_DIGITOS = 6;
+const MAX_DIGITOS = 10;
 
 /**
  * Después de registrarse (o de intentar entrar sin confirmar). Dos formas de
  * confirmar: tocar el enlace del correo en este teléfono (vuelve por /callback)
- * o escribir el código de 6 dígitos, que sirve si el correo se abre en otro lado.
+ * o escribir el código del correo, que sirve si el correo se abre en otro lado.
  */
 export default function Confirmar() {
   const t = useTema();
@@ -31,7 +34,7 @@ export default function Confirmar() {
     return () => clearTimeout(id);
   }, [espera]);
 
-  const completo = codigo.replace(/\D/g, "").length === 6;
+  const completo = codigo.length >= MIN_DIGITOS;
 
   async function confirmar() {
     if (!completo || confirmando) return;
@@ -68,9 +71,9 @@ export default function Confirmar() {
     >
       <Grupo pie={aviso?.texto} pieError={aviso?.error}>
         <CampoFila
-          placeholder="Código de 6 dígitos"
+          placeholder="Código del correo"
           value={codigo}
-          onChangeText={(v) => setCodigo(v.replace(/\D/g, "").slice(0, 6))}
+          onChangeText={(v) => setCodigo(v.replace(/\D/g, "").slice(0, MAX_DIGITOS))}
           keyboardType="number-pad"
           textContentType="oneTimeCode"
           autoComplete="one-time-code"
@@ -85,7 +88,10 @@ export default function Confirmar() {
           {espera > 0 ? `Reenviar correo (${espera} s)` : "Reenviar correo"}
         </BotonPrincipal>
         <Text style={[tipo.subtitulo, { color: t.textoSec, textAlign: "center" }]}>
-          <Text onPress={() => router.replace("/login")} style={{ color: t.tinte, fontWeight: "600" }}>
+          <Text
+            onPress={() => router.replace("/login")}
+            style={{ color: t.tinte, fontWeight: "600" }}
+          >
             Volver a iniciar sesión
           </Text>
         </Text>

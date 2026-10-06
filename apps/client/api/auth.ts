@@ -1,6 +1,7 @@
 import type { Usuario } from "@mi-desorden/core";
 import type { Session } from "@supabase/supabase-js";
 import * as Linking from "expo-linking";
+import { leerEnlace } from "./enlace";
 import { mensajeError, siFalla } from "./errores";
 import { supabase } from "./supabase";
 
@@ -65,7 +66,7 @@ export const auth = {
     siFalla(error);
   },
 
-  /** Confirma la cuenta con el código de 6 dígitos del correo e inicia la sesión. */
+  /** Confirma la cuenta con el código del correo (6 a 10 dígitos, según Supabase) e inicia la sesión. */
   async confirmarConCodigo(email: string, codigo: string) {
     const { error } = await supabase.auth.verifyOtp({
       email: normalizar(email),
@@ -76,16 +77,29 @@ export const auth = {
   },
 
   /**
-   * El enlace del correo volvió a la app (midesorden://callback?code=…): canjea
-   * el código PKCE por la sesión. Si Supabase mandó un error, lo tira.
+   * El enlace del correo volvió a la app: guarda la sesión que trae en el
+   * fragmento (#access_token=…). Si Supabase mandó un error, lo tira.
    */
-  async completarDesdeEnlace(params: { code?: string; error_description?: string }) {
-    if (params.error_description) {
-      throw new Error(mensajeError(params.error_description.replace(/\+/g, " ")));
+  async completarDesdeEnlace(url: string) {
+    const d = leerEnlace(url);
+    if (d.error_description || d.error_code) {
+      throw new Error(mensajeError(d.error_description ?? d.error_code));
     }
-    if (!params.code) throw new Error("El enlace no trae el código de confirmación.");
-    const { error } = await supabase.auth.exchangeCodeForSession(params.code);
-    siFalla(error);
+    if (d.access_token && d.refresh_token) {
+      const { error } = await supabase.auth.setSession({
+        access_token: d.access_token,
+        refresh_token: d.refresh_token,
+      });
+      siFalla(error);
+      return;
+    }
+    // Enlaces viejos, de cuando el cliente usaba PKCE.
+    if (d.code) {
+      const { error } = await supabase.auth.exchangeCodeForSession(d.code);
+      siFalla(error);
+      return;
+    }
+    throw new Error("El enlace no trae los datos de la cuenta. Pedí otro correo o usá el código.");
   },
 
   async iniciarSesion(email: string, clave: string) {

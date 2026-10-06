@@ -18,7 +18,6 @@
     "@expo/vector-icons": "^15.0.2",
     "@mi-desorden/core": "workspace:*",
     "@react-native-async-storage/async-storage": "2.2.0",
-    "@react-navigation/native": "^7.5.0",
     "@supabase/supabase-js": "^2.117.2",
     "@tanstack/react-query": "^5.62.0",
     "expo": "^57.0.0",
