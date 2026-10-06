@@ -87,12 +87,8 @@ describe("Sesión (JWT legacy HS256)", () => {
     expect(Number(res.headers["retry-after"])).toBeGreaterThan(0);
   });
 
-  it("las rutas públicas no piden sesión", async () => {
+  it("health no pide sesión", async () => {
     await request(app.getHttpServer()).get("/api/v1/health").expect(200);
-    await request(app.getHttpServer())
-      .post("/api/v1/devices/heartbeat")
-      .send({ device_id: "esp32-01", nombre: "Estante A" })
-      .expect(200);
   });
 
   it("manda headers de seguridad", async () => {

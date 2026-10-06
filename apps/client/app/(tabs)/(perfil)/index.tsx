@@ -1,9 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
 import Constants from "expo-constants";
 import { router } from "expo-router";
 import { StyleSheet, Switch, Text, View } from "react-native";
 import { Avatar, Contenido, Fila, Grupo, IconoCelda } from "@/components/ui";
-import { dispositivos as dispositivosApi } from "@/api";
 import { confirmar } from "@/lib/confirmar";
 import { useStore } from "@/lib/store";
 import { tipo, useTema } from "@/lib/theme";
@@ -12,11 +10,6 @@ export default function Perfil() {
   const t = useTema();
   const { usuario, inventarios, seleccionarInventario, enVivo, setEnVivo, cerrarSesion } =
     useStore();
-  const dispositivos = useQuery({
-    queryKey: ["devices"],
-    queryFn: dispositivosApi.listar,
-    retry: false,
-  });
 
   if (!usuario) return null;
 
@@ -48,50 +41,9 @@ export default function Perfil() {
       </Grupo>
 
       <Grupo
-        titulo="Dispositivos"
-        sangria={58}
-        pie="Los ESP32-S3 aparecen solos cuando mandan su primer heartbeat a la API."
-      >
-        {dispositivos.isError ? (
-          <Fila
-            izquierda={<IconoCelda sf="cpu" ion="hardware-chip" fondo="#8E8E93" />}
-            titulo="Sin conexión con la API"
-            subtitulo="Revisá que esté corriendo"
-          />
-        ) : dispositivos.data?.length ? (
-          dispositivos.data.map((d) => (
-            <Fila
-              key={d.id}
-              izquierda={
-                <IconoCelda
-                  sf="cpu"
-                  ion="hardware-chip"
-                  fondo={d.estado === "online" ? t.verde : "#8E8E93"}
-                />
-              }
-              titulo={d.nombre}
-              subtitulo={d.ubicacion ?? "Sin ubicación"}
-              valor={
-                d.estado === "online"
-                  ? "En línea"
-                  : d.estado === "durmiendo"
-                    ? "Durmiendo"
-                    : "Sin conexión"
-              }
-            />
-          ))
-        ) : (
-          <Fila
-            izquierda={<IconoCelda sf="cpu" ion="hardware-chip" fondo="#8E8E93" />}
-            titulo={dispositivos.isLoading ? "Buscando…" : "Ninguno todavía"}
-          />
-        )}
-      </Grupo>
-
-      <Grupo
         titulo="Preferencias"
         sangria={58}
-        pie="Cuando está activa, la lista se actualiza sola cada vez que la cámara recuenta un estante."
+        pie="Cuando está activa, ves al instante los cambios que hace tu equipo en el inventario."
       >
         <Fila
           izquierda={<IconoCelda sf="dot.radiowaves.left.and.right" ion="radio" fondo={t.verde} />}

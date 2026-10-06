@@ -1,9 +1,9 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
-import { IsOptional, IsString } from "class-validator";
+import { IsOptional, IsUUID } from "class-validator";
 
 export class ListarDeteccionesQuery {
-  @ApiPropertyOptional({ description: "Solo las de este dispositivo" })
+  @ApiPropertyOptional({ description: "Solo las de este inventario" })
   @IsOptional()
-  @IsString()
-  device_id?: string;
+  @IsUUID()
+  inventario_id?: string;
 }

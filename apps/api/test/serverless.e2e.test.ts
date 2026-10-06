@@ -20,6 +20,6 @@ describe("Handler serverless", () => {
   });
 
   it("aplica el guard de sesión", async () => {
-    await request(app).get("/api/v1/devices").expect(401);
+    await request(app).get("/api/v1/detections").expect(401);
   });
 });

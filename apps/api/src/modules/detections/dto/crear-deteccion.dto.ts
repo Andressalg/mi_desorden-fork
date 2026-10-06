@@ -1,25 +1,30 @@
-import type { DetectionFuente } from "@mi-desorden/core";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
-  IsIn,
   IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
   IsUrl,
+  IsUUID,
   Max,
   MaxLength,
   Min,
 } from "class-validator";
 
-const FUENTES: DetectionFuente[] = ["camara", "microfono"];
-
+/** Lo que manda la app cuando la cámara del teléfono reconoce algo. */
 export class CrearDeteccionDto {
-  @ApiProperty({ example: "esp32-01" })
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(64)
-  device_id: string;
+  @ApiPropertyOptional({ description: "Inventario que se estaba mirando", nullable: true })
+  @IsOptional()
+  @IsUUID()
+  inventario_id?: string | null;
+
+  @ApiPropertyOptional({
+    description: "Producto reconocido, si es uno del inventario",
+    nullable: true,
+  })
+  @IsOptional()
+  @IsUUID()
+  producto_id?: string | null;
 
   @ApiProperty({ example: "caja" })
   @IsString()
@@ -32,10 +37,6 @@ export class CrearDeteccionDto {
   @Min(0)
   @Max(1)
   confianza: number;
-
-  @ApiProperty({ enum: FUENTES })
-  @IsIn(FUENTES)
-  fuente: DetectionFuente;
 
   @ApiPropertyOptional({ nullable: true })
   @IsOptional()

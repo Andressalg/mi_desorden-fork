@@ -18,7 +18,7 @@ async function crearApp(env: Record<string, string>): Promise<INestApplication> 
   return app;
 }
 
-const PROD = { NODE_ENV: "production", DEVICE_TOKEN: "tok" };
+const PROD = { NODE_ENV: "production" };
 
 describe("Lista blanca CORS", () => {
   it("deja pasar un origen permitido con sus headers", async () => {
@@ -44,14 +44,14 @@ describe("Lista blanca CORS", () => {
   it("rechaza también el preflight de un origen no permitido", async () => {
     const app = await crearApp({ CORS_ORIGIN: "https://stg.midesorden.app" });
     await request(app.getHttpServer())
-      .options("/api/v1/devices")
+      .options("/api/v1/detections")
       .set("Origin", "https://stg.midesorden.app.evil.com")
       .set("Access-Control-Request-Method", "GET")
       .expect(403);
     await app.close();
   });
 
-  it("sin Origin (app móvil, ESP32) no se bloquea", async () => {
+  it("sin Origin (app móvil) no se bloquea", async () => {
     const app = await crearApp({ ...PROD });
     await request(app.getHttpServer()).get("/api/v1/health").expect(200);
     await app.close();

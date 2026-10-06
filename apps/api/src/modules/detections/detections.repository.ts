@@ -1,15 +1,18 @@
 import type { Detection } from "@mi-desorden/core";
 import { Injectable } from "@nestjs/common";
 
-/** Store en memoria, igual que DevicesRepository. Lo más nuevo primero. */
+/**
+ * Store en memoria: se pierde al reiniciar. Es el único lugar que hay que
+ * cambiar para persistir en Supabase. Lo más nuevo primero.
+ */
 @Injectable()
 export class DetectionsRepository {
   private readonly detections: Detection[] = [];
 
-  listar(deviceId?: string): Detection[] {
-    return deviceId
-      ? this.detections.filter((d) => d.device_id === deviceId)
-      : [...this.detections];
+  listar(usuarioId: string, inventarioId?: string): Detection[] {
+    return this.detections.filter(
+      (d) => d.usuario_id === usuarioId && (!inventarioId || d.inventario_id === inventarioId),
+    );
   }
 
   guardar(detection: Detection): Detection {

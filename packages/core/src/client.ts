@@ -1,4 +1,4 @@
-import type { Detection, DetectionInput, Device, Paginado, UsuarioSesion } from "./types";
+import type { Detection, DetectionInput, Paginado, UsuarioSesion } from "./types";
 
 export class ApiError extends Error {
   constructor(
@@ -35,11 +35,12 @@ export function createClient(baseUrl: string, options: ClientOptions = {}) {
 
   return {
     me: () => request<UsuarioSesion>("/auth/me"),
-    devices: () => request<Paginado<Device>>("/devices"),
-    device: (id: string) => request<Device>(`/devices/${id}`),
-    detections: (deviceId?: string) =>
+    /** Mis detecciones; con inventarioId, solo las de ese inventario. */
+    detections: (inventarioId?: string) =>
       request<Paginado<Detection>>(
-        deviceId ? `/detections?device_id=${encodeURIComponent(deviceId)}` : "/detections",
+        inventarioId
+          ? `/detections?inventario_id=${encodeURIComponent(inventarioId)}`
+          : "/detections",
       ),
     crearDeteccion: (input: DetectionInput) =>
       request<Detection>("/detections", { method: "POST", body: JSON.stringify(input) }),

@@ -11,7 +11,7 @@ export function estadoStock(t: Tema, p: Producto) {
   return { texto: "", color: t.texto };
 }
 
-/** Fila de producto. Se ilumina un instante cuando la cámara la recuenta. */
+/** Fila de producto. Se ilumina un instante cuando cambia en vivo (otra persona o la cámara). */
 export function FilaProducto({ producto, onPress }: { producto: Producto; onPress: () => void }) {
   const t = useTema();
   const brillo = useRef(new Animated.Value(0)).current;

@@ -9,7 +9,6 @@ export function validarEnv(crudo: Record<string, unknown>) {
     PORT: Number(texto("PORT") || 3000),
     /** Lista blanca de orígenes del navegador (ver origenesPermitidos). */
     CORS_ORIGINS: [] as string[],
-    DEVICE_TOKEN: texto("DEVICE_TOKEN"),
     /** La misma URL que usa la app; en Doppler alcanza con EXPO_PUBLIC_SUPABASE_URL. */
     SUPABASE_URL: (texto("SUPABASE_URL") || texto("EXPO_PUBLIC_SUPABASE_URL")).replace(/\/$/, ""),
     /** Solo para proyectos con JWT legacy (HS256). Los nuevos firman con claves asimétricas (JWKS). */
@@ -21,9 +20,6 @@ export function validarEnv(crudo: Record<string, unknown>) {
 
   if (!Number.isInteger(env.PORT) || env.PORT <= 0) {
     throw new Error(`PORT inválido: ${texto("PORT")}`);
-  }
-  if (env.NODE_ENV === "production" && !env.DEVICE_TOKEN) {
-    throw new Error("Falta DEVICE_TOKEN en producción");
   }
   env.CORS_ORIGINS = origenesPermitidos(texto, env.NODE_ENV === "production");
 
