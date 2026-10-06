@@ -123,6 +123,9 @@ function useEstado() {
     registrar: auth.registrar,
     iniciarSesion: auth.iniciarSesion,
     cerrarSesion: auth.cerrarSesion,
+    reenviarConfirmacion: auth.reenviarConfirmacion,
+    confirmarConCodigo: auth.confirmarConCodigo,
+    completarDesdeEnlace: auth.completarDesdeEnlace,
 
     seleccionarInventario(invId: string) {
       setActivoId(invId);

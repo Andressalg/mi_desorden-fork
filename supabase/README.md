@@ -27,4 +27,13 @@ RLS: cada usuario ve solo los inventarios donde es miembro; editan dueño y edit
 
 ## Auth
 
-Para la demo conviene apagar **Authentication → Sign In / Providers → Email → Confirm email**; si queda prendido, la app pide revisar el correo después de registrarse.
+La app confirma el correo de dos formas (`apps/client/app/(auth)/confirmar.tsx` y `callback.tsx`):
+
+1. **Enlace** → vuelve a la app en `midesorden://callback?code=…` (flujo PKCE) y se canjea por la sesión.
+2. **Código de 6 dígitos** → se escribe en la app; sirve si el correo se abre en otro dispositivo.
+
+Configuración en el dashboard:
+
+- **Authentication → URL Configuration → Redirect URLs**: agregar `midesorden://**` (development build y app instalada) y `exp://**` (Expo Go). Sin esto, Supabase manda el enlace a la Site URL y no vuelve a la app.
+- **Authentication → Emails → Confirm signup**: asunto `Tu código para mi_desorden` y como cuerpo el HTML de [`templates/confirmar-cuenta.html`](templates/confirmar-cuenta.html). Trae el código de 6 dígitos (`{{ .Token }}`) y el botón con el enlace (`{{ .ConfirmationURL }}`), y se adapta a modo oscuro.
+- **Confirm email** puede quedar prendido: la app maneja el "revisá tu correo", el reenvío (1 por minuto) y el login de una cuenta sin confirmar.

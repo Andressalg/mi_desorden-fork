@@ -13,6 +13,20 @@ export function mensajeError(e: unknown): string {
   if (/user already registered/i.test(msg)) return "Ya hay una cuenta con ese correo.";
   if (/password should be at least/i.test(msg)) return "La contraseña es muy corta.";
   if (/rate limit/i.test(msg)) return "Demasiados intentos. Esperá un minuto.";
+  if (/token has expired or is invalid|otp.*(expired|invalid)/i.test(msg))
+    return "El código es inválido o venció. Pedí uno nuevo.";
+  if (/only request this after (\d+) seconds/i.test(msg)) {
+    return `Esperá ${msg.match(/after (\d+) seconds/i)![1]} segundos antes de pedir otro correo.`;
+  }
+  if (/error sending (confirmation|recovery|magic link)? ?email|smtp/i.test(msg)) {
+    return "No se pudo enviar el correo. Revisá la configuración de SMTP en Supabase.";
+  }
+  if (/link is invalid or has expired|otp_expired|access_denied/i.test(msg)) {
+    return "El enlace venció o ya se usó. Pedí otro correo o usá el código.";
+  }
+  if (/code verifier|invalid flow state|auth code/i.test(msg)) {
+    return "Abrí el enlace en el mismo teléfono donde te registraste, o usá el código del correo.";
+  }
   if (/network|fetch/i.test(msg)) return "Sin conexión. Revisá tu internet.";
   return msg;
 }

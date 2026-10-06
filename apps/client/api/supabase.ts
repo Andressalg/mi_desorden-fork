@@ -12,6 +12,8 @@ export const supabase = createClient(config.supabaseUrl, config.supabaseKey, {
     persistSession: true,
     detectSessionInUrl: false,
     lock: processLock,
+    // PKCE: el enlace del correo vuelve con ?code= y se canjea en la app (ver auth.completarDesdeEnlace).
+    flowType: "pkce",
   },
 });
 
