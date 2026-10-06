@@ -125,6 +125,20 @@ function useEstado() {
     };
   }, [activo?.id, uid, enVivo, ponerProducto, sacarProducto, refrescarInventarios]);
 
+  /**
+   * Saca un inventario de la lista al instante (después de borrarlo o salir) y
+   * después confirma con la base: no depende de que el refetch llegue a tiempo.
+   */
+  const sacarInventario = (invId: string) => {
+    qc.setQueryData<Inventario[]>(["inventarios", uid], (l) => l?.filter((i) => i.id !== invId));
+    qc.removeQueries({ queryKey: ["productos", invId] });
+    if (activoId === invId || !activoId) {
+      setActivoId(null);
+      AsyncStorage.removeItem(CLAVE_ACTIVO).catch(() => {});
+    }
+    void refrescarInventarios();
+  };
+
   const acciones = {
     registrar: auth.registrar,
     iniciarSesion: auth.iniciarSesion,
@@ -182,8 +196,31 @@ function useEstado() {
 
     async crearInventario(nombre: string, lugar: string) {
       const id = await inventariosApi.crear(nombre, lugar);
-      await refrescarInventarios();
+      // Se agrega a la lista al instante (el trigger de la base me deja como dueño)
+      // y después se confirma con la base, sin depender de que el refetch llegue.
+      if (usuario) {
+        const nuevo: Inventario = {
+          id,
+          nombre: nombre.trim(),
+          lugar: lugar.trim(),
+          creado_en: new Date().toISOString(),
+          total_productos: 0,
+          miembros: [
+            {
+              usuario_id: usuario.id,
+              rol: "dueño",
+              nombre: usuario.nombre,
+              email: usuario.email,
+              en_linea: true,
+            },
+          ],
+        };
+        qc.setQueryData<Inventario[]>(["inventarios", uid], (l) =>
+          l?.some((i) => i.id === id) ? l : [...(l ?? []), nuevo],
+        );
+      }
       acciones.seleccionarInventario(id);
+      void refrescarInventarios();
     },
 
     async guardarProducto(productoId: string | null, input: ProductoInput) {
@@ -231,20 +268,14 @@ function useEstado() {
 
     async eliminarInventario(invId: string) {
       await inventariosApi.eliminar(invId);
-      if (activoId === invId) {
-        setActivoId(null);
-        AsyncStorage.removeItem(CLAVE_ACTIVO).catch(() => {});
-      }
-      qc.removeQueries({ queryKey: ["productos", invId] });
-      await refrescarInventarios();
+      sacarInventario(invId);
     },
 
     /** Dejar un inventario ajeno (la base deja que cualquiera se quite a sí mismo). */
     async salirDeInventario(invId: string) {
       if (!uid) return;
       await miembros.quitar(invId, uid);
-      if (activoId === invId) setActivoId(null);
-      await refrescarInventarios();
+      sacarInventario(invId);
     },
 
     async quitarMiembro(invId: string, usuarioId: string) {

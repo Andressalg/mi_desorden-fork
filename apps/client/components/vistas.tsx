@@ -5,6 +5,7 @@ import { router, useFocusEffect } from "expo-router";
 import { useCallback, useRef, useState, type ReactNode } from "react";
 import {
   AccessibilityInfo,
+  ActionSheetIOS,
   Alert,
   Animated,
   Easing,
@@ -107,35 +108,77 @@ export function Vista({
   );
 }
 
-/** Título grande con una línea chica arriba (estado o inventario) y una acción a la derecha. */
+/**
+ * Título grande con una línea chica arriba (estado o inventario) y una acción a
+ * la derecha. Si se pasa `alTocar`, el título (o la línea de arriba, con
+ * `tocarSobre`) abre el selector de inventario con un chevron ⌄.
+ */
 export function Encabezado({
   sobre,
   punto,
   titulo,
   accion,
+  alTocar,
+  tocarSobre = false,
   style,
 }: {
   sobre?: string;
   punto?: string;
   titulo: string;
   accion?: ReactNode;
+  alTocar?: () => void;
+  /** El selector va en la línea de arriba (Accesos) en vez de en el título. */
+  tocarSobre?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
   const t = useTema();
+  const sobreTocable = !!alTocar && tocarSobre;
+  const tituloTocable = !!alTocar && !tocarSobre;
+  const lineaSobre = sobre ? (
+    <View style={s.sobre}>
+      {punto ? <View style={[s.punto, { backgroundColor: punto }]} /> : null}
+      <Text
+        style={[s.sobreTexto, { color: sobreTocable ? t.tinte : t.textoSec }]}
+        numberOfLines={1}
+      >
+        {sobre}
+      </Text>
+      {sobreTocable ? (
+        <Icono sf="chevron.down" ion="chevron-down" size={11} color={t.tinte} weight="bold" />
+      ) : null}
+    </View>
+  ) : null;
+  const lineaTitulo = (
+    <View style={s.tituloFila}>
+      <Text style={[s.titulo, { color: t.texto, flexShrink: 1 }]} numberOfLines={1}>
+        {titulo}
+      </Text>
+      {tituloTocable ? (
+        <Icono sf="chevron.down" ion="chevron-down" size={20} color={t.textoTer} weight="bold" />
+      ) : null}
+    </View>
+  );
+  const tocable = (hijo: ReactNode, hint: string) => (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityHint={hint}
+      hitSlop={6}
+      onPress={() => (tocar(), alTocar?.())}
+      style={({ pressed }) => [
+        { alignSelf: "flex-start", maxWidth: "100%" },
+        pressed && { opacity: 0.6 },
+      ]}
+    >
+      {hijo}
+    </Pressable>
+  );
   return (
     <Animated.View style={[s.encabezado, style]}>
       <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-        {sobre ? (
-          <View style={s.sobre}>
-            {punto ? <View style={[s.punto, { backgroundColor: punto }]} /> : null}
-            <Text style={[s.sobreTexto, { color: t.textoSec }]} numberOfLines={1}>
-              {sobre}
-            </Text>
-          </View>
-        ) : null}
-        <Text style={[s.titulo, { color: t.texto }]} numberOfLines={1}>
-          {titulo}
-        </Text>
+        {sobreTocable && lineaSobre ? tocable(lineaSobre, "Cambiar de inventario") : lineaSobre}
+        {tituloTocable
+          ? tocable(lineaTitulo, "Cambiar de inventario, crear uno o eliminarlo")
+          : lineaTitulo}
       </View>
       {accion}
     </Animated.View>
@@ -204,68 +247,59 @@ export function useMenuInventario() {
   };
 }
 
-/** Píldoras para cambiar de inventario; el activo va en negro (blanco en modo oscuro). */
-export function PildorasInventario({
-  conNuevo = true,
-  style,
-}: {
-  conNuevo?: boolean;
-  style?: StyleProp<ViewStyle>;
-}) {
-  const t = useTema();
-  const { inventarios, activo, seleccionarInventario } = useStore();
+/**
+ * Selector de inventario: hoja de acciones nativa con los otros inventarios,
+ * "Nuevo inventario…" y eliminar/salir del actual. Reemplaza las píldoras, que
+ * repetían el nombre que ya está en el título.
+ */
+export function useSelectorInventario() {
+  const { inventarios, activo, usuario, seleccionarInventario } = useStore();
   const menu = useMenuInventario();
-  return (
-    <Animated.View style={style}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={{ marginHorizontal: -16, flexGrow: 0 }}
-        contentContainerStyle={{ gap: 8, paddingHorizontal: 16 }}
-      >
-        {inventarios.map((inv) => {
-          const sel = inv.id === activo?.id;
-          return (
-            <Pressable
-              key={inv.id}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: sel }}
-              accessibilityHint={
-                sel
-                  ? "Abre las opciones: eliminar o salir"
-                  : "Mantené presionado para eliminarlo o salir"
-              }
-              // Tocar el que ya está activo abre sus opciones; tocar otro, cambia de inventario.
-              onPress={() => (sel ? menu(inv) : (tocar(), seleccionarInventario(inv.id)))}
-              onLongPress={() => menu(inv)}
-              delayLongPress={400}
-              style={({ pressed }) => [
-                s.pildora,
-                { backgroundColor: sel ? t.texto : t.celda, opacity: pressed ? 0.75 : 1 },
-              ]}
-            >
-              <Text style={[s.pildoraTexto, { color: sel ? t.fondo : t.texto }]} numberOfLines={1}>
-                {inv.nombre}
-              </Text>
-            </Pressable>
-          );
-        })}
-        {conNuevo ? (
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => (tocar(), router.push("/inventario-nuevo"))}
-            style={({ pressed }) => [
-              s.pildora,
-              s.pildoraNueva,
-              { borderColor: t.textoTer, opacity: pressed ? 0.6 : 1 },
-            ]}
-          >
-            <Text style={[s.pildoraTexto, { color: t.textoSec }]}>+ Nuevo</Text>
-          </Pressable>
-        ) : null}
-      </ScrollView>
-    </Animated.View>
-  );
+  return () => {
+    const otros = inventarios.filter((i) => i.id !== activo?.id);
+    const dueño =
+      !!activo && activo.miembros.some((m) => m.rol === "dueño" && m.usuario_id === usuario?.id);
+    const nuevo = () => router.push("/inventario-nuevo");
+    const quitar = activo ? () => menu(activo) : undefined;
+    const etiquetaQuitar = activo
+      ? dueño
+        ? `Eliminar «${activo.nombre}»`
+        : `Salir de «${activo.nombre}»`
+      : undefined;
+
+    if (Platform.OS === "ios") {
+      const opciones = [
+        ...otros.map((i) => i.nombre),
+        "Nuevo inventario…",
+        ...(etiquetaQuitar ? [etiquetaQuitar] : []),
+        "Cancelar",
+      ];
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          title: activo ? `Estás en «${activo.nombre}»` : undefined,
+          options: opciones,
+          cancelButtonIndex: opciones.length - 1,
+          destructiveButtonIndex: etiquetaQuitar ? opciones.length - 2 : undefined,
+        },
+        (i) => {
+          if (i < otros.length) return seleccionarInventario(otros[i]!.id);
+          if (i === otros.length) return nuevo();
+          if (etiquetaQuitar && i === otros.length + 1) quitar?.();
+        },
+      );
+      return;
+    }
+    // Android / web: Alert admite pocos botones; alcanza para el MVP.
+    Alert.alert(activo ? activo.nombre : "Inventarios", undefined, [
+      ...otros
+        .slice(0, 1)
+        .map((i) => ({ text: i.nombre, onPress: () => seleccionarInventario(i.id) })),
+      { text: "Nuevo inventario…", onPress: nuevo },
+      ...(etiquetaQuitar
+        ? [{ text: etiquetaQuitar, style: "destructive" as const, onPress: quitar }]
+        : []),
+    ]);
+  };
 }
 
 /** Selector segmentado con pulgar que se desliza (filtros, roles). */
@@ -454,6 +488,7 @@ const s = StyleSheet.create({
   sobre: { flexDirection: "row", alignItems: "center", gap: 6 },
   punto: { width: 7, height: 7, borderRadius: 4 },
   sobreTexto: { fontSize: 13, flexShrink: 1 },
+  tituloFila: { flexDirection: "row", alignItems: "center", gap: 6 },
   titulo: { fontSize: 34, fontWeight: "700", letterSpacing: -0.8 },
   redondo: {
     width: 44,
@@ -467,15 +502,6 @@ const s = StyleSheet.create({
     shadowRadius: 3,
     shadowOffset: { width: 0, height: 1 },
   },
-  pildora: {
-    height: 34,
-    paddingHorizontal: 14,
-    borderRadius: 17,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  pildoraNueva: { backgroundColor: "transparent", borderWidth: 1, borderStyle: "dashed" },
-  pildoraTexto: { fontSize: 15, fontWeight: "600", letterSpacing: -0.2 },
   segmento: { flexDirection: "row", padding: 2 },
   segmentoPulgar: {
     position: "absolute",

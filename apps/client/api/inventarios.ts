@@ -66,6 +66,10 @@ export const inventarios = {
     const { data, error } = await supabase.from("inventarios").delete().eq("id", id).select("id");
     siFalla(error);
     // Con RLS, borrar sin permiso no da error: simplemente no borra nada.
-    if (!data?.length) throw new Error("Solo el dueño puede eliminar el inventario.");
+    if (!data?.length) {
+      throw new Error(
+        "No se borró nada: puede que ya no exista o que no seas el dueño. Tirá hacia abajo para actualizar.",
+      );
+    }
   },
 };

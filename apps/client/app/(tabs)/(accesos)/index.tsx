@@ -4,12 +4,12 @@ import { Animated, Pressable, StyleSheet, Text, TextInput, View } from "react-na
 import { Icono, tocar, Vacio } from "@/components/ui";
 import {
   Encabezado,
-  PildorasInventario,
   Seccion,
   SegmentadoAnimado,
   Separador,
   Tarjeta,
   useEntrada,
+  useSelectorInventario,
   Vista,
 } from "@/components/vistas";
 import { confirmar } from "@/lib/confirmar";
@@ -33,6 +33,7 @@ export default function Accesos() {
   const [enviando, setEnviando] = useState(false);
   const [aviso, setAviso] = useState<{ texto: string; error: boolean } | null>(null);
   const entrada = useEntrada(4);
+  const elegirInventario = useSelectorInventario();
 
   if (!activo) {
     return (
@@ -92,8 +93,13 @@ export default function Accesos() {
 
   return (
     <Vista>
-      <Encabezado sobre={activo.nombre} titulo="Accesos" style={entrada(0)} />
-      <PildorasInventario conNuevo={false} style={entrada(1)} />
+      <Encabezado
+        sobre={activo.nombre}
+        titulo="Accesos"
+        alTocar={elegirInventario}
+        tocarSobre
+        style={entrada(0)}
+      />
 
       <Seccion
         titulo={`${activo.miembros.length} ${activo.miembros.length === 1 ? "persona" : "personas"} · ${enLinea} en línea`}
