@@ -1,3 +1,5 @@
+import { normalizarOrigen } from "../seguridad/origenes";
+
 /** Valida y normaliza las variables de entorno al arrancar. */
 export function validarEnv(crudo: Record<string, unknown>) {
   const texto = (k: string) => (crudo[k] == null ? "" : String(crudo[k]).trim());
@@ -5,7 +7,8 @@ export function validarEnv(crudo: Record<string, unknown>) {
   const env = {
     NODE_ENV: texto("NODE_ENV") || "development",
     PORT: Number(texto("PORT") || 3000),
-    CORS_ORIGIN: texto("CORS_ORIGIN") || "*",
+    /** Lista blanca de orígenes del navegador (ver origenesPermitidos). */
+    CORS_ORIGINS: [] as string[],
     DEVICE_TOKEN: texto("DEVICE_TOKEN"),
     /** La misma URL que usa la app; en Doppler alcanza con EXPO_PUBLIC_SUPABASE_URL. */
     SUPABASE_URL: (texto("SUPABASE_URL") || texto("EXPO_PUBLIC_SUPABASE_URL")).replace(/\/$/, ""),
@@ -22,6 +25,8 @@ export function validarEnv(crudo: Record<string, unknown>) {
   if (env.NODE_ENV === "production" && !env.DEVICE_TOKEN) {
     throw new Error("Falta DEVICE_TOKEN en producción");
   }
+  env.CORS_ORIGINS = origenesPermitidos(texto, env.NODE_ENV === "production");
+
   // Nunca se imprime el valor: si alguien pegó la cadena de Postgres, trae la contraseña.
   if (
     !/^https:\/\/[a-z0-9-]+\.supabase\.(co|in)$/i.test(env.SUPABASE_URL) &&
@@ -32,6 +37,30 @@ export function validarEnv(crudo: Record<string, unknown>) {
     );
   }
   return env;
+}
+
+/**
+ * CORS_ORIGIN: lista separada por comas. En desarrollo, vacío = `*`. En
+ * producción `*` no se permite y, vacío, solo entra la propia URL de Vercel
+ * (para Swagger). Las URLs del deploy las agrega Vercel solo (VERCEL_*_URL).
+ */
+function origenesPermitidos(texto: (k: string) => string, produccion: boolean): string[] {
+  const configurados = texto("CORS_ORIGIN")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
+
+  if (configurados.includes("*")) {
+    if (produccion)
+      throw new Error("CORS_ORIGIN=* no está permitido en producción: listá los orígenes");
+    return ["*"];
+  }
+  if (!configurados.length && !produccion) return ["*"];
+
+  const propios = ["VERCEL_PROJECT_PRODUCTION_URL", "VERCEL_URL", "VERCEL_BRANCH_URL"]
+    .map(texto)
+    .filter(Boolean);
+  return [...new Set([...configurados, ...propios].map(normalizarOrigen))];
 }
 
 export type Env = ReturnType<typeof validarEnv>;

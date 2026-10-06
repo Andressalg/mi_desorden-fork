@@ -21,11 +21,12 @@ doppler setup          # elegí el config: dev_personal para lo tuyo, dev para e
 |----------|--------------|-------|
 | `EXPO_PUBLIC_SUPABASE_URL` | client | `https://eotdzgsisxfqyqbxwqna.supabase.co` |
 | `EXPO_PUBLIC_SUPABASE_KEY` | client | Supabase → API Keys → **publishable** (nunca la secret) |
+| `EXPO_PUBLIC_APP_ENV` | client | `development` (dev, dev_personal), `staging` (stg), `production` (prd). Define qué APIs acepta la app |
 | `EXPO_PUBLIC_API_URL` | client | `http://localhost:3000/api/v1` (o la IP de tu máquina en un teléfono físico; en stg/prd, `https://<deploy>.vercel.app/api/v1`) |
 | `PORT` | api | `3000` |
 | `SUPABASE_URL` | api | Opcional: si no está, usa `EXPO_PUBLIC_SUPABASE_URL`. Con ella verifica los tokens de la app |
 | `DEVICE_TOKEN` | api | El que tenga el firmware |
-| `CORS_ORIGIN` | api | `*` en desarrollo |
+| `CORS_ORIGIN` | api | Lista blanca de orígenes del navegador, separados por coma. Vacío en desarrollo = `*`; en producción `*` está prohibido y, vacío, solo entra la propia URL de Vercel |
 
 Sin acceso a Doppler: copiá los `.env.example` a `.env` y usá `bun run dev:local` dentro de cada app.
 

@@ -114,6 +114,14 @@ Dos tipos de cliente, dos credenciales:
 
 Además, global: `helmet` (headers de seguridad) y `@nestjs/throttler` (120 requests/min por IP).
 
+### Listas blancas
+
+- **App → API** (`apps/client/api/permitidas.ts`): según `EXPO_PUBLIC_APP_ENV`, la app solo acepta ciertas URLs de API y si no, no arranca.
+  - `staging`: solo `https://mi-desorden.vercel.app/api/v1` (o el alias `mi-desorden-guzzo1309s-projects.vercel.app`). Ni previews, ni http, ni otros dominios.
+  - `development`: `http://` a localhost o IP de la red local, en `/api/v1`.
+  - `production`: ninguna todavía.
+- **API → navegadores** (CORS, `apps/api/src/shared/seguridad/origenes.ts`): un `Origin` fuera de `CORS_ORIGIN` recibe **403**. Requests sin `Origin` (app móvil, ESP32, curl) no se ven afectadas.
+
 Rutas sin sesión, marcadas con `@Publico()`: `GET /api/v1/health`, `POST /api/v1/devices/heartbeat`, `POST /api/v1/detections`. `GET /api/v1/auth/me` devuelve la sesión del token.
 
 > En Vercel (`VERCEL=1`) se activa `trust proxy`, así `req.ip` es la del cliente y no la del proxy.
