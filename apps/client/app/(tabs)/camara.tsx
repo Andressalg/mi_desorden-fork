@@ -115,7 +115,11 @@ export default function Camara() {
 
       {/* Centro: visor */}
       <View style={s.centro} pointerEvents="none">
-        <Visor color={colorLed(t, led)} buscando={escaneo.fase === "buscando"} />
+        <Visor
+          color={colorLed(t, led)}
+          buscando={escaneo.fase === "buscando"}
+          marcado={escaneo.fase === "buscando" || escaneo.fase === "encontrado"}
+        />
       </View>
 
       {/* Abajo: resultado, selector de LED y disparador */}
@@ -171,7 +175,16 @@ export default function Camara() {
   );
 }
 
-function Visor({ color, buscando }: { color: string; buscando: boolean }) {
+/** Esquinas del visor: toman el color del LED mientras busca y cuando encontró algo; laten al buscar. */
+function Visor({
+  color,
+  buscando,
+  marcado,
+}: {
+  color: string;
+  buscando: boolean;
+  marcado: boolean;
+}) {
   const pulso = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     if (!buscando) {
@@ -201,7 +214,7 @@ function Visor({ color, buscando }: { color: string; buscando: boolean }) {
 
   const escala = pulso.interpolate({ inputRange: [0, 1], outputRange: [1, 0.94] });
   const esquina = (pos: object) => (
-    <View style={[s.esquina, { borderColor: buscando ? color : "#fff" }, pos]} />
+    <View style={[s.esquina, { borderColor: marcado ? color : "#fff" }, pos]} />
   );
 
   return (
@@ -263,7 +276,15 @@ function Resultado({
         {escaneo.fase === "encontrado" ? (
           <>
             <View style={s.tarjetaFila}>
-              <View style={[s.ledGrande, { backgroundColor: colorLed(t, escaneo.producto.led) }]} />
+              <View
+                style={[
+                  s.ledGrande,
+                  {
+                    backgroundColor: colorLed(t, escaneo.producto.led),
+                    shadowColor: colorLed(t, escaneo.producto.led),
+                  },
+                ]}
+              />
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={[tipo.destacado, { color: t.texto }]} numberOfLines={1}>
                   {escaneo.producto.nombre}
@@ -280,12 +301,7 @@ function Resultado({
           </>
         ) : (
           <View style={s.tarjetaFila}>
-            <Icono
-              sf="questionmark.circle"
-              ion="help-circle-outline"
-              size={28}
-              color={t.textoSec}
-            />
+            <View style={[s.ledGrande, { backgroundColor: t.relleno }]} />
             <View style={{ flex: 1 }}>
               <Text style={[tipo.destacado, { color: t.texto }]}>Nada con ese LED</Text>
               <Text style={[tipo.nota, { color: t.textoSec }]}>
@@ -379,5 +395,12 @@ const s = StyleSheet.create({
   },
   tarjeta: { borderRadius: 30, padding: 16, gap: 14 },
   tarjetaFila: { flexDirection: "row", alignItems: "center", gap: 12 },
-  ledGrande: { width: 32, height: 32, borderRadius: 16 },
+  ledGrande: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    shadowOpacity: 0.9,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 0 },
+  },
 });

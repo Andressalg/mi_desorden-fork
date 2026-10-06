@@ -78,6 +78,8 @@ export interface Producto {
   led: LedColor;
   /** Quién hizo el último cambio: la persona o la cámara. */
   fuente: "manual" | "camara";
+  /** Ruta en el bucket "productos" de Supabase Storage, o null si no tiene foto. */
+  foto_path: string | null;
   actualizado_en: string;
 }
 

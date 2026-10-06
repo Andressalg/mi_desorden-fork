@@ -65,7 +65,6 @@ export function PantallaAcceso({ modoInicial }: { modoInicial: Modo }) {
   const [foco, setFoco] = useState<"nombre" | "email" | "clave" | null>(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [aviso, setAviso] = useState<string | null>(null);
   const [cuenta, setCuenta] = useState(introVista ? CONTEO : 0);
 
   const reg = modo === "registro";
@@ -202,7 +201,6 @@ export function PantallaAcceso({ modoInicial }: { modoInicial: Modo }) {
     tocar();
     setModo(m);
     setError(null);
-    setAviso(null);
   }
 
   /* ---------- envío ---------- */
@@ -225,7 +223,6 @@ export function PantallaAcceso({ modoInicial }: { modoInicial: Modo }) {
   async function enviar() {
     if (!listo || cargando) return;
     setError(null);
-    setAviso(null);
     setCargando(true);
     const correo = email.trim().toLowerCase();
     try {
@@ -537,15 +534,17 @@ export function PantallaAcceso({ modoInicial }: { modoInicial: Modo }) {
                   <View style={{ alignItems: "flex-end", gap: 4 }}>
                     <Pressable
                       hitSlop={8}
-                      onPress={() => setAviso("Muy pronto vas a poder recuperarla desde acá.")}
+                      onPress={() =>
+                        router.push({
+                          pathname: "/recuperar",
+                          params: { email: email.trim().toLowerCase() },
+                        })
+                      }
                     >
                       <Text style={[s.pieTexto, { color: t.tinte, fontWeight: "600" }]}>
                         ¿Olvidaste tu contraseña?
                       </Text>
                     </Pressable>
-                    {aviso ? (
-                      <Text style={[s.pieTexto, { color: t.textoSec }]}>{aviso}</Text>
-                    ) : null}
                   </View>
                 )}
               </View>

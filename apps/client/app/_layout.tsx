@@ -10,7 +10,9 @@ import { useTema } from "@/lib/theme";
 const queryClient = new QueryClient();
 
 function Navegacion() {
-  const { listo, usuario } = useStore();
+  const { listo, usuario, recuperando } = useStore();
+  // Con la recuperación en curso hay sesión, pero todavía no se entra a la app.
+  const adentro = !!usuario && !recuperando;
   const t = useTema();
 
   if (!listo) {
@@ -39,12 +41,16 @@ function Navegacion() {
 
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.fondo } }}>
-      <Stack.Protected guard={!!usuario}>
+      <Stack.Protected guard={adentro}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="producto" options={{ ...modal, title: "Producto" }} />
         <Stack.Screen name="inventario-nuevo" options={{ ...modal, title: "Nuevo inventario" }} />
+        <Stack.Screen
+          name="foto"
+          options={{ presentation: "fullScreenModal", headerShown: false }}
+        />
       </Stack.Protected>
-      <Stack.Protected guard={!usuario}>
+      <Stack.Protected guard={!adentro}>
         <Stack.Screen name="(auth)" />
       </Stack.Protected>
     </Stack>
