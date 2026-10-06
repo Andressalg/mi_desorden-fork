@@ -21,7 +21,8 @@ type Paso = "pedir" | "codigo" | "nueva";
 export default function Recuperar() {
   const t = useTema();
   const params = useLocalSearchParams<{ email?: string; paso?: Paso }>();
-  const { enviarRecuperacion, restablecerClave, guardarClaveNueva, cancelarRecuperacion } = useStore();
+  const { enviarRecuperacion, restablecerClave, guardarClaveNueva, cancelarRecuperacion } =
+    useStore();
 
   const [paso, setPaso] = useState<Paso>(params.paso === "nueva" ? "nueva" : "pedir");
   const [email, setEmail] = useState(params.email ?? "");
@@ -110,7 +111,9 @@ export default function Recuperar() {
     </>
   );
 
-  const pie = aviso?.texto ?? (paso === "pedir" ? "Te mandamos un código para elegir una contraseña nueva." : pieClave);
+  const pie =
+    aviso?.texto ??
+    (paso === "pedir" ? "Te mandamos un código para elegir una contraseña nueva." : pieClave);
 
   return (
     <MarcoAcceso
@@ -163,7 +166,11 @@ export default function Recuperar() {
             >
               Cambiar contraseña
             </BotonPrincipal>
-            <BotonPrincipal variante="gris" onPress={reenviar} deshabilitado={espera > 0 || cargando}>
+            <BotonPrincipal
+              variante="gris"
+              onPress={reenviar}
+              deshabilitado={espera > 0 || cargando}
+            >
               {espera > 0 ? `Reenviar código (${espera} s)` : "Reenviar código"}
             </BotonPrincipal>
           </>

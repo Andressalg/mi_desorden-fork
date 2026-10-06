@@ -6,7 +6,7 @@ export default function AccesosLayout() {
   const t = useTema();
   return (
     <Stack screenOptions={opcionesHeader(t)}>
-      <Stack.Screen name="index" options={{ title: "Accesos" }} />
+      <Stack.Screen name="index" options={{ title: "Accesos", headerShown: false }} />
     </Stack>
   );
 }

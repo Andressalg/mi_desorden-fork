@@ -2,6 +2,7 @@ import type { Producto } from "@mi-desorden/core";
 import { useEffect, useRef } from "react";
 import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import { Icono, tocar } from "@/components/ui";
+import { FotoProducto } from "@/components/vistas";
 import { haceCuanto } from "@/lib/fecha";
 import { colorLed, tipo, useTema, type Tema } from "@/lib/theme";
 
@@ -21,13 +22,13 @@ export function FilaProducto({ producto, onPress }: { producto: Producto; onPres
     if (anterior.current === producto.actualizado_en) return;
     anterior.current = producto.actualizado_en;
     brillo.setValue(1);
-    Animated.timing(brillo, { toValue: 0, duration: 1400, useNativeDriver: false }).start();
+    Animated.timing(brillo, { toValue: 0, duration: 900, useNativeDriver: false }).start();
   }, [producto.actualizado_en, brillo]);
 
   const estado = estadoStock(t, producto);
   const fondo = brillo.interpolate({
     inputRange: [0, 1],
-    outputRange: [`${t.tinte}00`, `${t.tinte}2E`],
+    outputRange: [`${t.tinte}00`, `${t.tinte}2E`], // 0 → 18 % de naranja, como el diseño
   });
   const led = colorLed(t, producto.led);
 
@@ -36,6 +37,9 @@ export function FilaProducto({ producto, onPress }: { producto: Producto; onPres
       {({ pressed }) => (
         <Animated.View style={[s.fila, { backgroundColor: pressed ? t.relleno : fondo }]}>
           <View style={[s.led, { backgroundColor: led, shadowColor: led }]} />
+          {producto.foto_path ? (
+            <FotoProducto ruta={producto.foto_path} tam={40} version={producto.actualizado_en} />
+          ) : null}
           <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
             <Text style={[tipo.cuerpo, { color: t.texto, fontWeight: "500" }]} numberOfLines={1}>
               {producto.nombre}
@@ -78,7 +82,8 @@ const s = StyleSheet.create({
     alignItems: "center",
     gap: 14,
     minHeight: 64,
-    paddingHorizontal: 16,
+    paddingLeft: 16,
+    paddingRight: 14,
     paddingVertical: 10,
   },
   led: {

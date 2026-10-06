@@ -6,7 +6,7 @@ export default function PerfilLayout() {
   const t = useTema();
   return (
     <Stack screenOptions={opcionesHeader(t)}>
-      <Stack.Screen name="index" options={{ title: "Perfil" }} />
+      <Stack.Screen name="index" options={{ title: "Perfil", headerShown: false }} />
     </Stack>
   );
 }

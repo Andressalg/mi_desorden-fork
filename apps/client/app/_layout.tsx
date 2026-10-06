@@ -45,6 +45,10 @@ function Navegacion() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="producto" options={{ ...modal, title: "Producto" }} />
         <Stack.Screen name="inventario-nuevo" options={{ ...modal, title: "Nuevo inventario" }} />
+        <Stack.Screen
+          name="foto"
+          options={{ presentation: "fullScreenModal", headerShown: false }}
+        />
       </Stack.Protected>
       <Stack.Protected guard={!adentro}>
         <Stack.Screen name="(auth)" />

@@ -27,7 +27,8 @@ export default function Callback() {
     completarDesdeEnlace(url)
       .then((tipo) => {
         // Enlace de recuperación: hay sesión, pero falta elegir la contraseña nueva.
-        if (tipo === "recovery") router.replace({ pathname: "/recuperar", params: { paso: "nueva" } });
+        if (tipo === "recovery")
+          router.replace({ pathname: "/recuperar", params: { paso: "nueva" } });
       })
       .catch((e: Error) => setError(e.message));
   }, [url, completarDesdeEnlace]);

@@ -3,6 +3,7 @@ import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Stepper } from "@/components/Stepper";
+import { FotoProducto } from "@/components/vistas";
 import { CampoFila, Contenido, Fila, Grupo, Icono, tocar } from "@/components/ui";
 import { confirmar } from "@/lib/confirmar";
 import { haceCuanto } from "@/lib/fecha";
@@ -14,7 +15,8 @@ const LEDS: LedColor[] = ["verde", "azul", "amarillo", "rojo", "violeta"];
 export default function ProductoForm() {
   const t = useTema();
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const { productosActivos, guardarProducto, eliminarProducto, miRol } = useStore();
+  const { productosActivos, guardarProducto, eliminarProducto, quitarFotoProducto, miRol } =
+    useStore();
   const existente = id ? productosActivos.find((p) => p.id === id) : undefined;
   const editable = puedeEditar(miRol);
 
@@ -24,6 +26,7 @@ export default function ProductoForm() {
   const [minimo, setMinimo] = useState(existente?.minimo ?? 1);
   const [ubicacion, setUbicacion] = useState(existente?.ubicacion ?? "");
   const [led, setLed] = useState<LedColor>(existente?.led ?? "verde");
+  const [fotoError, setFotoError] = useState<string | null>(null);
 
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -166,6 +169,51 @@ export default function ProductoForm() {
           </View>
         </Grupo>
 
+        {existente && (existente.foto_path || editable) ? (
+          <Grupo
+            titulo="Foto"
+            pie={
+              fotoError ??
+              "Ayuda a reconocerlo de un vistazo. Solo la ven quienes tienen acceso al inventario."
+            }
+            pieError={!!fotoError}
+          >
+            {existente.foto_path ? (
+              <View style={s.foto}>
+                <FotoProducto
+                  ruta={existente.foto_path}
+                  tam={220}
+                  version={existente.actualizado_en}
+                />
+              </View>
+            ) : null}
+            {editable ? (
+              <Fila
+                titulo={existente.foto_path ? "Cambiar foto" : "Tomar foto"}
+                tinte
+                onPress={() => router.push({ pathname: "/foto", params: { id: existente.id } })}
+              />
+            ) : null}
+            {editable && existente.foto_path ? (
+              <Fila
+                titulo="Quitar foto"
+                destructiva
+                onPress={() =>
+                  confirmar(
+                    "¿Quitar la foto?",
+                    "Se borra para todos los que tienen acceso.",
+                    "Quitar",
+                    () => {
+                      setFotoError(null);
+                      quitarFotoProducto(existente).catch((e: Error) => setFotoError(e.message));
+                    },
+                  )
+                }
+              />
+            ) : null}
+          </Grupo>
+        ) : null}
+
         {existente ? (
           <Grupo>
             <Fila titulo="Última actualización" valor={haceCuanto(existente.actualizado_en)} />
@@ -207,6 +255,7 @@ function Numero({ n, onCambio }: { n: number; onCambio: (n: number) => void }) {
 }
 
 const s = StyleSheet.create({
+  foto: { alignItems: "center", paddingVertical: 16 },
   numero: { flexDirection: "row", alignItems: "center", gap: 12 },
   leds: {
     flexDirection: "row",

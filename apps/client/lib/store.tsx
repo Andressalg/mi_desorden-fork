@@ -196,9 +196,22 @@ function useEstado() {
     },
 
     async eliminarProducto(productoId: string) {
-      await productosApi.eliminar(productoId);
+      const producto = productosQ.data?.find((p) => p.id === productoId);
+      await productosApi.eliminar({ id: productoId, foto_path: producto?.foto_path ?? null });
       if (activo) sacarProducto(activo.id, productoId);
       refrescarInventarios();
+    },
+
+    /** Foto del producto: base64 JPEG de la cámara. */
+    async subirFotoProducto(producto: Producto, base64: string) {
+      ponerProducto(await productosApi.subirFoto(producto, base64));
+      qc.invalidateQueries({
+        queryKey: ["foto", producto.inventario_id + "/" + producto.id + ".jpg"],
+      });
+    },
+
+    async quitarFotoProducto(producto: Producto) {
+      ponerProducto(await productosApi.quitarFoto(producto));
     },
 
     /** Lo que hace la cámara al reconocer un producto: lo marca como visto. */
