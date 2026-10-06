@@ -1,6 +1,13 @@
+import { ambienteDe, resolverApiUrl } from "./permitidas";
+
+/** Ambiente de la app. Doppler: development (dev, dev_personal), staging (stg), production (prd). */
+const ambiente = ambienteDe(process.env.EXPO_PUBLIC_APP_ENV);
+
 /** Variables públicas del backend. Vienen de Doppler (o del .env con `dev:local`). */
 export const config = {
-  apiUrl: (process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000/api/v1").replace(/\/$/, ""),
+  ambiente,
+  /** Validada contra la lista blanca de api/permitidas.ts. */
+  apiUrl: resolverApiUrl(ambiente, process.env.EXPO_PUBLIC_API_URL),
   supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL ?? "",
   supabaseKey: process.env.EXPO_PUBLIC_SUPABASE_KEY ?? "",
 };

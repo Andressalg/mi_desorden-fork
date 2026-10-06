@@ -46,13 +46,11 @@ export default async function handler(req: Request, res: Response) {
   } catch (e) {
     logger.error(`No arrancó Nest: ${(e as Error).message}`, (e as Error).stack);
     if (!res.headersSent) {
-      res
-        .status(500)
-        .json({
-          statusCode: 500,
-          error: "INTERNAL_SERVER_ERROR",
-          message: "Error interno del servidor",
-        });
+      res.status(500).json({
+        statusCode: 500,
+        error: "INTERNAL_SERVER_ERROR",
+        message: "Error interno del servidor",
+      });
     }
   }
 }
