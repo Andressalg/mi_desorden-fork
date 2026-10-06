@@ -78,6 +78,8 @@ Proyecto de Vercel con **Root Directory = `apps/api`**. `vercel.json` usa `frame
 | `api/v1/health/index.ts` | `GET /api/v1/health` pasando por Nest |
 | `api/[[...path]].ts` | Todo `/api/v1/*` por rewrite → `dist/serverless.js` |
 
+> **Sin previews**: `ignoreCommand` en `vercel.json` cancela todo deploy con `VERCEL_ENV=preview`. Hay un solo proyecto de Supabase (producción), así que un preview de una rama `feature/*` usaría los datos reales. Solo despliega `develop` (Production en Vercel).
+
 > Sin `crons` en `vercel.json`: el plan Hobby solo permite crons diarios y uno más frecuente hace fallar el deploy entero. Para mantener la función tibia, usar un monitor externo (UptimeRobot, Better Stack) contra `/api/v1/health/liveness`.
 
 `bun run build` empaqueta `src/serverless.ts` en `dist/serverless.js` (CommonJS para Node). Variables en Vercel: `SUPABASE_URL` (o `EXPO_PUBLIC_SUPABASE_URL`, la URL **https**) y, si hace falta, `CORS_ORIGIN`. `ENABLE_SWAGGER=true` para ver `/api/v1/docs` fuera de desarrollo.
