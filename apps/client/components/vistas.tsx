@@ -230,8 +230,13 @@ export function PildorasInventario({
               key={inv.id}
               accessibilityRole="tab"
               accessibilityState={{ selected: sel }}
-              accessibilityHint="Mantené presionado para eliminarlo o salir"
-              onPress={() => (tocar(), seleccionarInventario(inv.id))}
+              accessibilityHint={
+                sel
+                  ? "Abre las opciones: eliminar o salir"
+                  : "Mantené presionado para eliminarlo o salir"
+              }
+              // Tocar el que ya está activo abre sus opciones; tocar otro, cambia de inventario.
+              onPress={() => (sel ? menu(inv) : (tocar(), seleccionarInventario(inv.id)))}
               onLongPress={() => menu(inv)}
               delayLongPress={400}
               style={({ pressed }) => [
