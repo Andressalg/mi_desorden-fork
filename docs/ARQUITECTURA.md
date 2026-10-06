@@ -70,9 +70,11 @@ Proyecto de Vercel con **Root Directory = `apps/api`**. `vercel.json` usa `frame
 | Función | Qué hace |
 |---------|----------|
 | `api/index.ts` | `GET /` y `/api`: responde sin cargar Nest |
-| `api/v1/health/liveness.ts` | Probe liviano sin Nest (cron cada 5 min para mantenerla tibia) |
+| `api/v1/health/liveness.ts` | Probe liviano sin Nest, para un monitor de uptime externo |
 | `api/v1/health/index.ts` | `GET /api/v1/health` pasando por Nest |
 | `api/[[...path]].ts` | Todo `/api/v1/*` por rewrite → `dist/serverless.js` |
+
+> Sin `crons` en `vercel.json`: el plan Hobby solo permite crons diarios y uno más frecuente hace fallar el deploy entero. Para mantener la función tibia, usar un monitor externo (UptimeRobot, Better Stack) contra `/api/v1/health/liveness`.
 
 `bun run build` empaqueta `src/serverless.ts` en `dist/serverless.js` (CommonJS para Node). Variables en Vercel (vía Doppler): `NODE_ENV=production`, `DEVICE_TOKEN` (obligatoria en producción), `EXPO_PUBLIC_SUPABASE_URL` o `SUPABASE_URL`, `CORS_ORIGIN`. `ENABLE_SWAGGER=true` para ver `/api/v1/docs` fuera de desarrollo.
 
