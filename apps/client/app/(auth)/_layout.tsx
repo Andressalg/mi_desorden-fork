@@ -12,6 +12,7 @@ export default function AuthLayout() {
       <Stack.Screen name="registro" />
       <Stack.Screen name="confirmar" />
       <Stack.Screen name="callback" />
+      <Stack.Screen name="recuperar" />
     </Stack>
   );
 }

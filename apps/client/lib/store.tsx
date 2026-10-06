@@ -25,6 +25,12 @@ function useEstado() {
   const [activoId, setActivoId] = useState<string | null>(null);
   const [enVivo, setEnVivoState] = useState(true);
   const [presentes, setPresentes] = useState<Set<string>>(new Set());
+  /**
+   * Recuperando la contraseña: verificar el código ya inicia la sesión, pero
+   * hasta que se guarde la clave nueva hay que quedarse en la pantalla de
+   * recuperación. Mientras esto está prendido, el layout no deja pasar a las tabs.
+   */
+  const [recuperando, setRecuperando] = useState(false);
 
   // Sesión + preferencias guardadas.
   useEffect(() => {
@@ -125,7 +131,49 @@ function useEstado() {
     cerrarSesion: auth.cerrarSesion,
     reenviarConfirmacion: auth.reenviarConfirmacion,
     confirmarConCodigo: auth.confirmarConCodigo,
-    completarDesdeEnlace: auth.completarDesdeEnlace,
+    enviarRecuperacion: auth.enviarRecuperacion,
+
+    /** El enlace del correo volvió a la app. Si es de recuperación, se queda a pedir la clave nueva. */
+    async completarDesdeEnlace(url: string) {
+      const recuperacion = /[#?&]type=recovery\b/.test(url);
+      if (recuperacion) setRecuperando(true);
+      try {
+        return await auth.completarDesdeEnlace(url);
+      } catch (e) {
+        if (recuperacion) setRecuperando(false);
+        throw e;
+      }
+    },
+
+    /** Código + clave nueva: verifica (inicia sesión) y cambia la clave antes de dejar pasar. */
+    async restablecerClave(email: string, codigo: string, nueva: string) {
+      setRecuperando(true);
+      try {
+        await auth.verificarRecuperacion(email, codigo);
+      } catch (e) {
+        setRecuperando(false);
+        throw e;
+      }
+      // Si falla el cambio, la sesión queda abierta y la pantalla deja reintentar solo la clave.
+      try {
+        await auth.cambiarClave(nueva);
+      } catch (e) {
+        throw Object.assign(e as Error, { soloClave: true });
+      }
+      setRecuperando(false);
+    },
+
+    /** Reintento o enlace del correo: ya hay sesión, solo falta la clave nueva. */
+    async guardarClaveNueva(nueva: string) {
+      await auth.cambiarClave(nueva);
+      setRecuperando(false);
+    },
+
+    /** Salir de la recuperación a mitad de camino: cierra la sesión que abrió el código. */
+    async cancelarRecuperacion() {
+      if (usuario) await auth.cerrarSesion();
+      setRecuperando(false);
+    },
 
     seleccionarInventario(invId: string) {
       setActivoId(invId);
@@ -186,6 +234,7 @@ function useEstado() {
   return {
     listo,
     usuario,
+    recuperando,
     inventarios,
     activo,
     miRol,

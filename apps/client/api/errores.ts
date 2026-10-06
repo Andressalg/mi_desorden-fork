@@ -12,6 +12,12 @@ export function mensajeError(e: unknown): string {
   if (/email not confirmed/i.test(msg)) return "Confirmá tu correo antes de entrar.";
   if (/user already registered/i.test(msg)) return "Ya hay una cuenta con ese correo.";
   if (/password should be at least/i.test(msg)) return "La contraseña es muy corta.";
+  if (/should be different from the old password/i.test(msg)) {
+    return "La contraseña nueva tiene que ser distinta de la anterior.";
+  }
+  if (/weak password|password is known to be weak|pwned/i.test(msg)) {
+    return "Esa contraseña es muy común o fue filtrada. Elegí otra.";
+  }
   if (/rate limit/i.test(msg)) return "Demasiados intentos. Esperá un minuto.";
   if (/token has expired or is invalid|otp.*(expired|invalid)/i.test(msg))
     return "El código es inválido o venció. Pedí uno nuevo.";

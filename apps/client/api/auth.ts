@@ -91,15 +91,42 @@ export const auth = {
         refresh_token: d.refresh_token,
       });
       siFalla(error);
-      return;
+      return d.type;
     }
     // Enlaces viejos, de cuando el cliente usaba PKCE.
     if (d.code) {
       const { error } = await supabase.auth.exchangeCodeForSession(d.code);
       siFalla(error);
-      return;
+      return d.type;
     }
     throw new Error("El enlace no trae los datos de la cuenta. Pedí otro correo o usá el código.");
+  },
+
+  /**
+   * Manda el correo para recuperar la contraseña (código + enlace). Supabase
+   * responde igual exista o no la cuenta, así no se puede averiguar quién está registrado.
+   */
+  async enviarRecuperacion(email: string) {
+    const { error } = await supabase.auth.resetPasswordForEmail(normalizar(email), {
+      redirectTo: urlRetorno(),
+    });
+    siFalla(error);
+  },
+
+  /** Valida el código de recuperación. Ojo: deja la sesión iniciada (ver store.recuperando). */
+  async verificarRecuperacion(email: string, codigo: string) {
+    const { error } = await supabase.auth.verifyOtp({
+      email: normalizar(email),
+      token: codigo.replace(/\D/g, ""),
+      type: "recovery",
+    });
+    siFalla(error);
+  },
+
+  /** Cambia la contraseña del usuario con sesión (después de verificar la recuperación). */
+  async cambiarClave(nueva: string) {
+    const { error } = await supabase.auth.updateUser({ password: nueva });
+    siFalla(error);
   },
 
   async iniciarSesion(email: string, clave: string) {

@@ -36,4 +36,5 @@ Configuración en el dashboard:
 
 - **Authentication → URL Configuration → Redirect URLs**: agregar `midesorden://**` (development build y app instalada) y `exp://**` (Expo Go). Sin esto, Supabase manda el enlace a la Site URL y no vuelve a la app.
 - **Authentication → Emails → Confirm signup**: asunto `Tu código para mi_desorden` y como cuerpo el HTML de [`templates/confirmar-cuenta.html`](templates/confirmar-cuenta.html). Trae el código del correo (este proyecto usa 8 dígitos) (`{{ .Token }}`) y el botón con el enlace (`{{ .ConfirmationURL }}`), y se adapta a modo oscuro.
+- **Authentication → Emails → Reset password**: asunto `Tu código para cambiar la contraseña` y como cuerpo [`templates/recuperar-clave.html`](templates/recuperar-clave.html). La app (`app/(auth)/recuperar.tsx`) usa el código con `verifyOtp` tipo `recovery` y después `updateUser`; el enlace vuelve por `midesorden://callback` con `type=recovery` y pide solo la clave nueva.
 - **Confirm email** puede quedar prendido: la app maneja el "revisá tu correo", el reenvío (1 por minuto) y el login de una cuenta sin confirmar.
