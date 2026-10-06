@@ -7,11 +7,13 @@
 | Decisión | Por qué |
 |----------|---------|
 | Monorepo Bun + Turborepo | Mismo esquema que nexo y wave: un `bun dev` levanta todo |
-| Elysia en vez de NestJS | Criterio de siempre: NestJS para productos con muchos módulos, Elysia para APIs chicas sobre Bun |
+| NestJS (antes Elysia) | La API va a crecer por módulos (devices, detections, después inventario y reconocimiento): Nest da la estructura modular, DI y validación con DTOs. Corre sobre Bun |
 | ESP-IDF en vez de Arduino | Control sobre PSRAM, I2S y tareas de FreeRTOS. Arduino queda corto para cámara + audio en simultáneo |
 | ESP32-**S3** | La PSRAM y el ancho de banda que pide la cámara. Un ESP32 clásico no da |
 | `packages/core` con los tipos | Que el cliente y la API no se desincronicen |
 | Ramas develop / staging / production | Mismo flujo que canchapp y nexo |
+| Supabase para auth e inventario | Lo de siempre: auth, Postgres con RLS y Realtime sin servidor propio. Esquema en `supabase/migrations/` |
+| La app habla directo con Supabase | Para el MVP no hace falta pasar por la API: RLS decide qué ve cada uno. La API queda para el ESP32 |
 
 ## Pendientes
 
@@ -27,9 +29,9 @@ La grande, y está sin decidir.
 
 Lo que hay hoy: `tarea_captura` en `apps/firmware/main/main.c` captura y loguea, nada más.
 
-### 2. Base de datos
+### 2. Base de datos de la API
 
-Hoy es un store en memoria. Candidatos: Supabase (lo de siempre) o SQLite con Bun para algo local.
+El inventario de la app ya vive en Supabase. Falta que la API (devices/detections del ESP32) deje el store en memoria y escriba ahí también, con la service key del lado del servidor.
 
 ### 3. Dónde guardar las imágenes
 
@@ -37,7 +39,7 @@ Si se manda el recorte del frame: Supabase Storage, S3, o nada (solo la etiqueta
 
 ### 4. Autenticación del dispositivo
 
-El firmware ya manda `x-device-token`; falta validarlo en la API.
+Resuelta con un token compartido (`DeviceTokenGuard`). Queda pendiente: un token por dispositivo en vez de uno para todos.
 
 ### 5. Deploy de la API
 

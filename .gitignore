@@ -33,3 +33,7 @@ datasets/
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# Expo CNG: se generan con `expo prebuild` / `expo run:*`
+apps/client/ios/
+apps/client/android/

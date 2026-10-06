@@ -7,7 +7,7 @@ Reconocimiento de objetos con un **ESP32-S3** con cámara y micrófono: identifi
 ## Arquitectura
 
 ```
-ESP32-S3 (cámara + mic)  ──HTTP──>  api (Bun + Elysia)  <──HTTP──  client (Expo)
+ESP32-S3 (cámara + mic)  ──HTTP──>  api (Bun + NestJS)  <──HTTP──  client (Expo)
        apps/firmware                    apps/api                    apps/client
                                             │
                                      packages/core
@@ -20,23 +20,23 @@ ESP32-S3 (cámara + mic)  ──HTTP──>  api (Bun + Elysia)  <──HTTP─�
 |------|------------|
 | Monorepo | Bun workspaces + Turborepo (TUI) |
 | Firmware | ESP-IDF v5 (C) sobre ESP32-S3 |
-| API | Bun + Elysia + Swagger |
+| API | NestJS sobre Bun + class-validator + Swagger |
 | Cliente | Expo (React Native) + Expo Router + TanStack Query |
 | Compartido | `packages/core` — tipos y cliente HTTP |
-| Env vars | Doppler |
+| Env vars | Doppler (proyecto `mi_desroden`, ver [QUICKSTART](docs/QUICKSTART.md)) |
 
 ## Requisitos
 
 - [Bun](https://bun.sh)
 - [ESP-IDF v5.2+](https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/get-started/) (solo para el firmware)
-- [Doppler](https://doppler.com) (opcional, para envs)
+- [Doppler CLI](https://docs.doppler.com/docs/install-cli) (las variables de entorno viven ahí)
 
 ## Setup
 
 ```bash
 bun install
-cp apps/api/.env.example apps/api/.env
-cp apps/client/.env.example apps/client/.env
+doppler login
+doppler setup   # proyecto mi_desroden
 ```
 
 ## Levantar el proyecto

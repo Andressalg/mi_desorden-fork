@@ -5,7 +5,7 @@
 ## Fase 0 — Estructura ✅
 
 - [x] Monorepo Bun + Turborepo
-- [x] API con Elysia, endpoints de devices y detections
+- [x] API con endpoints de devices y detections (migrada a NestJS)
 - [x] Cliente Expo con tabs
 - [x] Firmware ESP-IDF: WiFi, cámara, mic, heartbeat
 - [x] CI y ramas develop / staging / production
@@ -14,7 +14,7 @@
 
 - [ ] Corregir el pinout a la placa real y flashear
 - [ ] Heartbeat llegando a la API desde el ESP32
-- [ ] Validar `x-device-token` en la API
+- [x] Validar `x-device-token` en la API
 - [ ] Subir un frame JPEG a la API
 
 ## Fase 2 — Reconocimiento

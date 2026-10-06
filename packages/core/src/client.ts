@@ -1,4 +1,4 @@
-import type { Detection, DetectionInput, Device, Paginado } from "./types";
+import type { Detection, DetectionInput, Device, Paginado, UsuarioSesion } from "./types";
 
 export class ApiError extends Error {
   constructor(
@@ -10,20 +10,31 @@ export class ApiError extends Error {
   }
 }
 
+export interface ClientOptions {
+  /** Devuelve el access token de la sesión (Supabase). Sin token, solo andan las rutas públicas. */
+  token?: () => Promise<string | null | undefined> | string | null | undefined;
+}
+
 /** Cliente HTTP de la API. Lo usan el cliente Expo y los scripts. */
-export function createClient(baseUrl: string) {
+export function createClient(baseUrl: string, options: ClientOptions = {}) {
   const url = baseUrl.replace(/\/$/, "");
 
   async function request<T>(path: string, init?: RequestInit): Promise<T> {
+    const token = await options.token?.();
     const res = await fetch(`${url}${path}`, {
       ...init,
-      headers: { "Content-Type": "application/json", ...init?.headers },
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...init?.headers,
+      },
     });
     if (!res.ok) throw new ApiError(`${init?.method ?? "GET"} ${path} → ${res.status}`, res.status);
     return (await res.json()) as T;
   }
 
   return {
+    me: () => request<UsuarioSesion>("/auth/me"),
     devices: () => request<Paginado<Device>>("/devices"),
     device: (id: string) => request<Device>(`/devices/${id}`),
     detections: (deviceId?: string) =>

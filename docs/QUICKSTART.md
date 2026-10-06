@@ -8,18 +8,26 @@
 bun install
 ```
 
-## 2. Variables de entorno
+## 2. Variables de entorno (Doppler)
+
+Las variables viven en Doppler, proyecto `mi_desroden`. Los scripts `dev`, `ios`, `android` y `start` corren con `doppler run --`.
 
 ```bash
-cp apps/api/.env.example apps/api/.env
-cp apps/client/.env.example apps/client/.env
+doppler login
+doppler setup          # elegí el config: dev_personal para lo tuyo, dev para el compartido
 ```
 
-En `apps/client/.env`, si vas a probar en un teléfono físico, poné la IP de tu máquina en vez de `localhost`:
+| Variable | Quién la usa | Valor |
+|----------|--------------|-------|
+| `EXPO_PUBLIC_SUPABASE_URL` | client | `https://eotdzgsisxfqyqbxwqna.supabase.co` |
+| `EXPO_PUBLIC_SUPABASE_KEY` | client | Supabase → API Keys → **publishable** (nunca la secret) |
+| `EXPO_PUBLIC_API_URL` | client | `http://localhost:3000/api/v1` (o la IP de tu máquina en un teléfono físico; en stg/prd, `https://<deploy>.vercel.app/api/v1`) |
+| `PORT` | api | `3000` |
+| `SUPABASE_URL` | api | Opcional: si no está, usa `EXPO_PUBLIC_SUPABASE_URL`. Con ella verifica los tokens de la app |
+| `DEVICE_TOKEN` | api | El que tenga el firmware |
+| `CORS_ORIGIN` | api | `*` en desarrollo |
 
-```
-EXPO_PUBLIC_API_URL=http://192.168.1.100:3000
-```
+Sin acceso a Doppler: copiá los `.env.example` a `.env` y usá `bun run dev:local` dentro de cada app.
 
 ## 3. Levantar API y cliente
 
@@ -27,18 +35,18 @@ EXPO_PUBLIC_API_URL=http://192.168.1.100:3000
 bun dev
 ```
 
-API en `http://localhost:3000` (Swagger en `/docs`), Expo en `http://localhost:8081`.
+API en `http://localhost:3000/api/v1` (Swagger en `/api/v1/docs`), Expo en `http://localhost:8081`.
 
 Probar que responde:
 
 ```bash
-curl http://localhost:3000/health
+curl http://localhost:3000/api/v1/health
 ```
 
 Simular una detección sin hardware:
 
 ```bash
-curl -X POST http://localhost:3000/detections \
+curl -X POST http://localhost:3000/api/v1/detections \
   -H 'Content-Type: application/json' \
   -d '{"device_id":"esp32-01","etiqueta":"caja","confianza":0.91,"fuente":"camara"}'
 ```
