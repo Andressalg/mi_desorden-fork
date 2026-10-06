@@ -21,7 +21,7 @@ doppler setup          # elegí el config: dev_personal para lo tuyo, dev para e
 |----------|--------------|-------|
 | `EXPO_PUBLIC_SUPABASE_URL` | client | `https://eotdzgsisxfqyqbxwqna.supabase.co` |
 | `EXPO_PUBLIC_SUPABASE_KEY` | client | Supabase → API Keys → **publishable** (nunca la secret) |
-| `EXPO_PUBLIC_API_URL` | client | `http://localhost:3000`, o la IP de tu máquina si probás en un teléfono físico |
+| `EXPO_PUBLIC_API_URL` | client | `http://localhost:3000/api/v1` (o la IP de tu máquina en un teléfono físico; en stg/prd, `https://<deploy>.vercel.app/api/v1`) |
 | `PORT` | api | `3000` |
 | `SUPABASE_URL` | api | Opcional: si no está, usa `EXPO_PUBLIC_SUPABASE_URL`. Con ella verifica los tokens de la app |
 | `DEVICE_TOKEN` | api | El que tenga el firmware |
@@ -35,18 +35,18 @@ Sin acceso a Doppler: copiá los `.env.example` a `.env` y usá `bun run dev:loc
 bun dev
 ```
 
-API en `http://localhost:3000` (Swagger en `/docs`), Expo en `http://localhost:8081`.
+API en `http://localhost:3000/api/v1` (Swagger en `/api/v1/docs`), Expo en `http://localhost:8081`.
 
 Probar que responde:
 
 ```bash
-curl http://localhost:3000/health
+curl http://localhost:3000/api/v1/health
 ```
 
 Simular una detección sin hardware:
 
 ```bash
-curl -X POST http://localhost:3000/detections \
+curl -X POST http://localhost:3000/api/v1/detections \
   -H 'Content-Type: application/json' \
   -d '{"device_id":"esp32-01","etiqueta":"caja","confianza":0.91,"fuente":"camara"}'
 ```

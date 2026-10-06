@@ -27,7 +27,7 @@ describe("Sesión (JWT legacy HS256)", () => {
   });
   afterEach(() => app.close());
 
-  const me = () => request(app.getHttpServer()).get("/auth/me");
+  const me = () => request(app.getHttpServer()).get("/api/v1/auth/me");
 
   it("pide token en las rutas protegidas", async () => {
     const res = await me().expect(401);
@@ -88,15 +88,15 @@ describe("Sesión (JWT legacy HS256)", () => {
   });
 
   it("las rutas públicas no piden sesión", async () => {
-    await request(app.getHttpServer()).get("/health").expect(200);
+    await request(app.getHttpServer()).get("/api/v1/health").expect(200);
     await request(app.getHttpServer())
-      .post("/devices/heartbeat")
+      .post("/api/v1/devices/heartbeat")
       .send({ device_id: "esp32-01", nombre: "Estante A" })
       .expect(200);
   });
 
   it("manda headers de seguridad", async () => {
-    const res = await request(app.getHttpServer()).get("/health").expect(200);
+    const res = await request(app.getHttpServer()).get("/api/v1/health").expect(200);
     expect(res.headers["x-content-type-options"]).toBe("nosniff");
     expect(res.headers["x-powered-by"]).toBeUndefined();
   });
@@ -137,7 +137,7 @@ describe("Sesión (claves asimétricas por JWKS)", () => {
 
   it("verifica con la clave pública del proyecto", async () => {
     const res = await request(app.getHttpServer())
-      .get("/auth/me")
+      .get("/api/v1/auth/me")
       .set("Authorization", `Bearer ${await firmar()}`)
       .expect(200);
     expect(res.body.id).toBe(USUARIO_ID);
@@ -145,7 +145,7 @@ describe("Sesión (claves asimétricas por JWKS)", () => {
 
   it("rechaza un kid que no está en el JWKS", async () => {
     await request(app.getHttpServer())
-      .get("/auth/me")
+      .get("/api/v1/auth/me")
       .set("Authorization", `Bearer ${await firmar({ kid: "inventada" })}`)
       .expect(401);
   });

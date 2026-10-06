@@ -1,6 +1,6 @@
 /** Variables públicas del backend. Vienen de Doppler (o del .env con `dev:local`). */
 export const config = {
-  apiUrl: (process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000").replace(/\/$/, ""),
+  apiUrl: (process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000/api/v1").replace(/\/$/, ""),
   supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL ?? "",
   supabaseKey: process.env.EXPO_PUBLIC_SUPABASE_KEY ?? "",
 };

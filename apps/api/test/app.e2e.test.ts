@@ -30,13 +30,13 @@ describe("API", () => {
   afterEach(() => app.close());
 
   it("responde el health", async () => {
-    const res = await request(app.getHttpServer()).get("/health").expect(200);
+    const res = await request(app.getHttpServer()).get("/api/v1/health").expect(200);
     expect(res.body).toMatchObject({ ok: true });
   });
 
   it("arranca sin dispositivos", async () => {
     const res = await request(app.getHttpServer())
-      .get("/devices")
+      .get("/api/v1/devices")
       .set(await sesion.header())
       .expect(200);
     expect(res.body).toEqual({ items: [], total: 0 });
@@ -44,12 +44,12 @@ describe("API", () => {
 
   it("registra un dispositivo con el heartbeat", async () => {
     await request(app.getHttpServer())
-      .post("/devices/heartbeat")
+      .post("/api/v1/devices/heartbeat")
       .send({ device_id: "esp32-01", nombre: "Estantería A", firmware: "0.1.0" })
       .expect(200);
 
     const res = await request(app.getHttpServer())
-      .get("/devices/esp32-01")
+      .get("/api/v1/devices/esp32-01")
       .set(await sesion.header())
       .expect(200);
     expect(res.body).toMatchObject({ id: "esp32-01", estado: "online", firmware: "0.1.0" });
@@ -57,17 +57,17 @@ describe("API", () => {
 
   it("da 404 con un dispositivo que no existe", async () => {
     const res = await request(app.getHttpServer())
-      .get("/devices/nada")
+      .get("/api/v1/devices/nada")
       .set(await sesion.header())
       .expect(404);
-    expect(res.body).toMatchObject({ statusCode: 404, path: "/devices/nada" });
+    expect(res.body).toMatchObject({ statusCode: 404, path: "/api/v1/devices/nada" });
   });
 
   it("guarda una detección y la devuelve", async () => {
-    await request(app.getHttpServer()).post("/detections").send(deteccion).expect(201);
+    await request(app.getHttpServer()).post("/api/v1/detections").send(deteccion).expect(201);
 
     const res = await request(app.getHttpServer())
-      .get("/detections")
+      .get("/api/v1/detections")
       .set(await sesion.header())
       .expect(200);
     expect(res.body.total).toBe(1);
@@ -75,14 +75,14 @@ describe("API", () => {
   });
 
   it("filtra detecciones por dispositivo", async () => {
-    await request(app.getHttpServer()).post("/detections").send(deteccion).expect(201);
+    await request(app.getHttpServer()).post("/api/v1/detections").send(deteccion).expect(201);
     await request(app.getHttpServer())
-      .post("/detections")
+      .post("/api/v1/detections")
       .send({ ...deteccion, device_id: "esp32-02" })
       .expect(201);
 
     const res = await request(app.getHttpServer())
-      .get("/detections?device_id=esp32-02")
+      .get("/api/v1/detections?device_id=esp32-02")
       .set(await sesion.header())
       .expect(200);
     expect(res.body.total).toBe(1);
@@ -90,7 +90,7 @@ describe("API", () => {
 
   it("rechaza una confianza fuera de rango", async () => {
     const res = await request(app.getHttpServer())
-      .post("/detections")
+      .post("/api/v1/detections")
       .send({ ...deteccion, confianza: 4 })
       .expect(400);
     expect(res.body.message).toEqual(
@@ -99,7 +99,7 @@ describe("API", () => {
   });
 
   it("sirve el swagger", async () => {
-    await request(app.getHttpServer()).get("/docs-json").expect(200);
+    await request(app.getHttpServer()).get("/api/v1/docs-json").expect(200);
   });
 });
 
@@ -111,12 +111,12 @@ describe("x-device-token", () => {
   afterEach(() => app.close());
 
   it("rechaza sin token", async () => {
-    await request(app.getHttpServer()).post("/detections").send(deteccion).expect(401);
+    await request(app.getHttpServer()).post("/api/v1/detections").send(deteccion).expect(401);
   });
 
   it("rechaza un token incorrecto", async () => {
     await request(app.getHttpServer())
-      .post("/detections")
+      .post("/api/v1/detections")
       .set("x-device-token", "otro")
       .send(deteccion)
       .expect(401);
@@ -124,7 +124,7 @@ describe("x-device-token", () => {
 
   it("deja pasar con el token correcto", async () => {
     await request(app.getHttpServer())
-      .post("/detections")
+      .post("/api/v1/detections")
       .set("x-device-token", "secreto")
       .send(deteccion)
       .expect(201);
@@ -132,7 +132,7 @@ describe("x-device-token", () => {
 
   it("no pide token de dispositivo para leer", async () => {
     await request(app.getHttpServer())
-      .get("/detections")
+      .get("/api/v1/detections")
       .set(await sesion.header())
       .expect(200);
   });

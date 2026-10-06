@@ -2,12 +2,11 @@
   "name": "api",
   "version": "0.2.0",
   "private": true,
-  "type": "module",
   "scripts": {
     "dev": "doppler run -- bun --watch src/server.ts",
     "dev:local": "bun --watch src/server.ts",
     "start": "doppler run -- bun src/server.ts",
-    "build": "bun build src/server.ts --target bun --outdir dist --external @nestjs/microservices --external @nestjs/websockets --external @nestjs/websockets/socket-module --external @nestjs/microservices/microservices-module --external class-transformer/storage",
+    "build": "bun build src/serverless.ts --target node --format cjs --outdir dist --sourcemap=linked --external @nestjs/microservices --external @nestjs/websockets --external @nestjs/websockets/socket-module --external @nestjs/microservices/microservices-module --external class-transformer/storage --external swagger-ui-dist",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "clean": "rm -rf dist node_modules .turbo"

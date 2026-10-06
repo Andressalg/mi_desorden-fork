@@ -50,7 +50,8 @@ Regla: fuera de `api/` no se importa `@supabase/supabase-js` ni se hace `fetch`.
 
 ```
 apps/api/src
-├── server.ts            arranque
+├── server.ts            arranque local (bun dev)
+├── serverless.ts        handler para Vercel: arranca Nest una vez y lo reutiliza
 ├── app.setup.ts         CORS, ValidationPipe, filtro de errores y Swagger (lo comparten server y tests)
 ├── core.module.ts       raíz: ConfigModule + módulos
 ├── shared/              global: config/env, guards/device-token, filters/http-exception
@@ -62,17 +63,30 @@ apps/api/src
 
 Cada módulo separa HTTP (controller), lógica (service) y datos (repository). Para pasar a Supabase solo cambian los repositories.
 
+## Deploy (Vercel, igual que canchapp)
+
+Proyecto de Vercel con **Root Directory = `apps/api`**. `vercel.json` usa `framework: null` y funciones propias en `apps/api/api/`:
+
+| Función | Qué hace |
+|---------|----------|
+| `api/index.ts` | `GET /` y `/api`: responde sin cargar Nest |
+| `api/v1/health/liveness.ts` | Probe liviano sin Nest (cron cada 5 min para mantenerla tibia) |
+| `api/v1/health/index.ts` | `GET /api/v1/health` pasando por Nest |
+| `api/[[...path]].ts` | Todo `/api/v1/*` por rewrite → `dist/serverless.js` |
+
+`bun run build` empaqueta `src/serverless.ts` en `dist/serverless.js` (CommonJS para Node). Variables en Vercel (vía Doppler): `NODE_ENV=production`, `DEVICE_TOKEN` (obligatoria en producción), `EXPO_PUBLIC_SUPABASE_URL` o `SUPABASE_URL`, `CORS_ORIGIN`. `ENABLE_SWAGGER=true` para ver `/api/v1/docs` fuera de desarrollo.
+
 ## Endpoints
 
 | Método | Ruta | Para qué |
 |--------|------|----------|
-| GET | `/health` | Healthcheck |
-| GET | `/auth/me` | La sesión según el token (requiere Bearer) |
-| GET | `/devices` | Lista de dispositivos |
-| GET | `/devices/:id` | Un dispositivo |
-| POST | `/devices/heartbeat` | El ESP32 avisa que está vivo |
-| GET | `/detections` | Historial (filtra por `device_id`) |
-| POST | `/detections` | El ESP32 registra una detección |
+| GET | `/api/v1/health` | Healthcheck |
+| GET | `/api/v1/auth/me` | La sesión según el token (requiere Bearer) |
+| GET | `/api/v1/devices` | Lista de dispositivos |
+| GET | `/api/v1/devices/:id` | Un dispositivo |
+| POST | `/api/v1/devices/heartbeat` | El ESP32 avisa que está vivo |
+| GET | `/api/v1/detections` | Historial (filtra por `device_id`) |
+| POST | `/api/v1/detections` | El ESP32 registra una detección |
 
 ## Persistencia
 
@@ -98,6 +112,6 @@ Dos tipos de cliente, dos credenciales:
 
 Además, global: `helmet` (headers de seguridad) y `@nestjs/throttler` (120 requests/min por IP).
 
-Rutas sin sesión, marcadas con `@Publico()`: `GET /health`, `POST /devices/heartbeat`, `POST /detections`. `GET /auth/me` devuelve la sesión del token.
+Rutas sin sesión, marcadas con `@Publico()`: `GET /api/v1/health`, `POST /api/v1/devices/heartbeat`, `POST /api/v1/detections`. `GET /api/v1/auth/me` devuelve la sesión del token.
 
-> Detrás de un proxy (Vercel, Nginx), activar `trust proxy` en Express para que la IP sea la del cliente y no la del proxy.
+> En Vercel (`VERCEL=1`) se activa `trust proxy`, así `req.ip` es la del cliente y no la del proxy.

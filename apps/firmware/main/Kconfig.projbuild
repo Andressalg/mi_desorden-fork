@@ -10,9 +10,10 @@ menu "mi_desorden"
 
     config MD_API_URL
         string "URL base de la API"
-        default "http://192.168.1.100:3000"
+        default "http://192.168.1.100:3000/api/v1"
         help
-            Sin barra al final. En desarrollo, la IP de la máquina que corre la API.
+            Con /api/v1 y sin barra al final. En desarrollo, la IP de la máquina que corre la API;
+            en producción, https://<deploy>.vercel.app/api/v1.
 
     config MD_DEVICE_ID
         string "ID del dispositivo"
