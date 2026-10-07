@@ -12,4 +12,4 @@ export { mensajeError } from "./errores";
 export { inventarios } from "./inventarios";
 export { miembros } from "./miembros";
 export { productos } from "./productos";
-export { escucharInventario, type EventosInventario } from "./realtime";
+export { escucharInventario, escucharMisAccesos, type EventosInventario } from "./realtime";

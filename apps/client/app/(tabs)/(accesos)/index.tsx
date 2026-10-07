@@ -26,8 +26,16 @@ type RolInvitable = Exclude<Rol, "dueño">;
 
 export default function Accesos() {
   const t = useTema();
-  const { inventarios, activo, usuario, miRol, invitarEnVarios, cambiarRol, quitarMiembro } =
-    useStore();
+  const {
+    inventarios,
+    activo,
+    usuario,
+    miRol,
+    invitarEnVarios,
+    cancelarInvitacion,
+    cambiarRol,
+    quitarMiembro,
+  } = useStore();
   const [abierto, setAbierto] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [rol, setRol] = useState<RolInvitable>("editor");
@@ -76,9 +84,11 @@ export default function Accesos() {
 
   async function enviar() {
     if (!puedeEnviar) return;
-    // Los que ya lo tienen con el mismo rol no hace falta mandarlos.
+    // Los que ya lo tienen (o lo tienen pendiente) con el mismo rol no hace falta mandarlos.
     const pendientes = elegidos.filter(
-      (i) => !i.miembros.some((m) => m.email === correo && m.rol === rol),
+      (i) =>
+        !i.miembros.some((m) => m.email === correo && m.rol === rol) &&
+        !i.pendientes.some((p) => p.email === correo && p.rol === rol),
     );
     if (!pendientes.length) {
       return setAviso({ texto: `${correo} ya tiene ese acceso.`, error: true });
@@ -86,16 +96,29 @@ export default function Accesos() {
     setEnviando(true);
     setAviso(null);
     try {
-      const { ok, error } = await invitarEnVarios(
+      const {
+        ok,
+        pendiente,
+        correo: avisado,
+        error,
+      } = await invitarEnVarios(
         pendientes.map((i) => i.id),
         correo,
         rol,
       );
       const nombres = pendientes.filter((i) => ok.includes(i.id)).map((i) => `“${i.nombre}”`);
       if (error && !ok.length) return fallar(error);
+      const lista = enLista(nombres);
       setAviso({
         texto:
-          `Listo: ${correo} ya puede ver ${enLista(nombres)}.` +
+          (pendiente
+            ? `${correo} todavía no tiene cuenta. ` +
+              (avisado
+                ? `Le mandamos un correo para que se registre; va a ver ${lista} apenas confirme.`
+                : `Va a ver ${lista} cuando se registre con ese correo.`)
+            : `Listo: ${correo} ya puede ver ${lista}.` +
+              (avisado ? " Le mandamos un correo con el enlace." : "")) +
+          (avisado ? "" : " No se pudo mandar el correo: avisale vos.") +
           (error ? ` En los otros no se pudo: ${error.message}` : ""),
         error: !!error,
       });
@@ -103,6 +126,20 @@ export default function Accesos() {
     } finally {
       setEnviando(false);
     }
+  }
+
+  function cancelar(email: string) {
+    if (!activo) return;
+    const inv = activo.nombre;
+    confirmar(
+      "¿Cancelar la invitación?",
+      `${email} ya no va a poder entrar a “${inv}” cuando se registre.`,
+      "Cancelar invitación",
+      () =>
+        cancelarInvitacion(activo.id, email)
+          .then(() => setAviso({ texto: `Cancelaste la invitación de ${email}.`, error: false }))
+          .catch(fallar),
+    );
   }
 
   function quitar(m: Miembro) {
@@ -134,7 +171,12 @@ export default function Accesos() {
       />
 
       <Seccion
-        titulo={`${activo.miembros.length} ${activo.miembros.length === 1 ? "persona" : "personas"} · ${enLinea} en línea`}
+        titulo={
+          `${activo.miembros.length} ${activo.miembros.length === 1 ? "persona" : "personas"} · ${enLinea} en línea` +
+          (soyDueño && activo.pendientes.length
+            ? ` · ${activo.pendientes.length} ${activo.pendientes.length === 1 ? "pendiente" : "pendientes"}`
+            : "")
+        }
         derecha={
           <View style={s.pila}>
             {activo.miembros.slice(0, 5).map((m) => (
@@ -149,7 +191,9 @@ export default function Accesos() {
         }
         pie={
           soyDueño
-            ? "Tocá a alguien para cambiar su rol o quitarle el acceso."
+            ? activo.pendientes.length
+              ? "Tocá a alguien para cambiar su rol o quitarle el acceso, o una invitación para cancelarla."
+              : "Tocá a alguien para cambiar su rol o quitarle el acceso."
             : `Tu rol en este inventario: ${ROL_TEXTO[miRol]}.`
         }
         style={entrada(2)}
@@ -230,6 +274,32 @@ export default function Accesos() {
               </View>
             );
           })}
+          {soyDueño
+            ? activo.pendientes.map((p) => (
+                <View key={p.email}>
+                  <Separador sangria={68} />
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityHint="Cancela la invitación"
+                    onPress={() => (tocar(), cancelar(p.email))}
+                    style={({ pressed }) => [s.fila, pressed && { backgroundColor: t.relleno }]}
+                  >
+                    <View style={[s.avatar, { backgroundColor: t.relleno }]}>
+                      <Icono sf="envelope" ion="mail-outline" size={18} color={t.textoSec} />
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+                      <Text style={[s.nombre, { color: t.texto }]} numberOfLines={1}>
+                        {p.email}
+                      </Text>
+                      <Text style={[s.sub, { color: t.textoSec }]} numberOfLines={1}>
+                        Invitación pendiente
+                      </Text>
+                    </View>
+                    <Insignia rol={p.rol} t={t} />
+                  </Pressable>
+                </View>
+              ))
+            : null}
         </Tarjeta>
       </Seccion>
 
@@ -239,8 +309,8 @@ export default function Accesos() {
           pie={
             aviso?.texto ??
             (propios.length > 1
-              ? "Marcá uno o varios inventarios. La persona tiene que tener cuenta. Los editores agregan y cambian productos; los lectores solo miran."
-              : "La persona tiene que tener cuenta. Los editores agregan y cambian productos; los lectores solo miran.")
+              ? "Marcá uno o varios inventarios. Le llega un correo con el enlace; si no tiene cuenta, para que se registre. Los editores agregan y cambian productos; los lectores solo miran."
+              : "Le llega un correo con el enlace; si no tiene cuenta, para que se registre. Los editores agregan y cambian productos; los lectores solo miran.")
           }
           pieColor={colorAviso}
           style={entrada(3)}

@@ -1,4 +1,4 @@
-import type { Inventario, Rol } from "@mi-desorden/core";
+import type { Inventario, InvitacionPendiente, Rol } from "@mi-desorden/core";
 import { siFalla } from "./errores";
 import { supabase } from "./supabase";
 
@@ -9,6 +9,7 @@ type Fila = {
   creado_en: string;
   miembros: { usuario_id: string; rol: Rol; perfiles: { nombre: string; email: string } | null }[];
   productos: { count: number }[];
+  invitaciones: InvitacionPendiente[];
 };
 
 const ORDEN_ROL: Record<Rol, number> = { dueño: 0, editor: 1, lector: 2 };
@@ -19,7 +20,7 @@ export const inventarios = {
     const { data, error } = await supabase
       .from("inventarios")
       .select(
-        "id, nombre, lugar, creado_en, miembros(usuario_id, rol, perfiles(nombre, email)), productos(count)",
+        "id, nombre, lugar, creado_en, miembros(usuario_id, rol, perfiles(nombre, email)), productos(count), invitaciones(email, rol, creado_en)",
       )
       .order("creado_en");
     siFalla(error);
@@ -30,6 +31,8 @@ export const inventarios = {
       lugar: inv.lugar,
       creado_en: inv.creado_en,
       total_productos: inv.productos[0]?.count ?? 0,
+      // RLS: solo el dueño ve las invitaciones pendientes.
+      pendientes: [...(inv.invitaciones ?? [])].sort((a, b) => a.email.localeCompare(b.email)),
       miembros: inv.miembros
         .map((m) => ({
           usuario_id: m.usuario_id,

@@ -43,6 +43,7 @@ function Navegacion() {
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.fondo } }}>
       <Stack.Protected guard={adentro}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="abrir" />
         <Stack.Screen name="producto" options={{ ...modal, title: "Producto" }} />
         <Stack.Screen name="inventario-nuevo" options={{ ...modal, title: "Nuevo inventario" }} />
         <Stack.Screen

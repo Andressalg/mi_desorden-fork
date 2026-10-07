@@ -33,6 +33,11 @@ export function escucharInventario(inventarioId: string, usuarioId: string, on: 
     .on("postgres_changes", { event: "*", schema: "public", table: "miembros" }, () =>
       on.miembrosCambiaron(),
     )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "invitaciones", filter: filtro },
+      () => on.miembrosCambiaron(),
+    )
     .on("presence", { event: "sync" }, () =>
       on.presentes(new Set(Object.keys(canal.presenceState()))),
     )
@@ -40,6 +45,24 @@ export function escucharInventario(inventarioId: string, usuarioId: string, on: 
       if (estado === "SUBSCRIBED") canal.track({ desde: new Date().toISOString() }).catch(() => {});
     });
 
+  return () => {
+    supabase.removeChannel(canal);
+  };
+}
+
+/**
+ * Avisa cuando me dan acceso a un inventario (o me lo sacan), aunque no tenga
+ * ninguno abierto: así lo nuevo aparece sin tener que actualizar.
+ */
+export function escucharMisAccesos(usuarioId: string, alCambiar: () => void) {
+  const canal = supabase
+    .channel(`accesos:${usuarioId}`)
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "miembros", filter: `usuario_id=eq.${usuarioId}` },
+      () => alCambiar(),
+    )
+    .subscribe();
   return () => {
     supabase.removeChannel(canal);
   };

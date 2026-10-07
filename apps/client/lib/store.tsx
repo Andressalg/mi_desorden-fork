@@ -5,6 +5,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import {
   auth,
   escucharInventario,
+  escucharMisAccesos,
   inventarios as inventariosApi,
   miembros,
   productos as productosApi,
@@ -101,6 +102,12 @@ function useEstado() {
     () => qc.invalidateQueries({ queryKey: ["inventarios", uid] }),
     [qc, uid],
   );
+
+  // Cuando alguien me da acceso a un inventario, aparece sin tener que actualizar.
+  useEffect(() => {
+    if (!uid || !enVivo) return;
+    return escucharMisAccesos(uid, () => void refrescarInventarios());
+  }, [uid, enVivo, refrescarInventarios]);
 
   // Realtime del inventario activo.
   useEffect(() => {
@@ -205,6 +212,7 @@ function useEstado() {
           lugar: lugar.trim(),
           creado_en: new Date().toISOString(),
           total_productos: 0,
+          pendientes: [],
           miembros: [
             {
               usuario_id: usuario.id,
@@ -269,10 +277,26 @@ function useEstado() {
       const resultados = await Promise.allSettled(
         invIds.map((id) => miembros.invitar(id, email, rol)),
       );
-      await refrescarInventarios();
       const ok = invIds.filter((_, i) => resultados[i]!.status === "fulfilled");
       const error = resultados.find((r): r is PromiseRejectedResult => r.status === "rejected");
-      return { ok, error: error ? (error.reason as Error) : null };
+      // "pendiente" = todavía no tiene cuenta (en todos los que salieron).
+      const pendiente =
+        ok.length > 0 &&
+        resultados.every((r) => r.status !== "fulfilled" || r.value === "pendiente");
+      // El correo es un extra: si falla, el acceso igual quedó dado.
+      const correo = ok.length
+        ? await miembros
+            .avisar(email, ok)
+            .then(() => true)
+            .catch(() => false)
+        : false;
+      await refrescarInventarios();
+      return { ok, pendiente, correo, error: error ? (error.reason as Error) : null };
+    },
+
+    async cancelarInvitacion(invId: string, email: string) {
+      await miembros.cancelarInvitacion(invId, email);
+      await refrescarInventarios();
     },
 
     async cambiarRol(invId: string, usuarioId: string, rol: Rol) {

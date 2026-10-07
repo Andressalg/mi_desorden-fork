@@ -14,6 +14,22 @@ export function validarEnv(crudo: Record<string, unknown>) {
     /** Solo para proyectos con JWT legacy (HS256). Los nuevos firman con claves asimétricas (JWKS). */
     SUPABASE_JWT_SECRET: texto("SUPABASE_JWT_SECRET"),
     /** Tokens inválidos que se toleran por IP antes de bloquearla. */
+    /** Clave pública del proyecto: la API consulta la base como el usuario que llama (con RLS). */
+    SUPABASE_ANON_KEY: texto("SUPABASE_ANON_KEY") || texto("EXPO_PUBLIC_SUPABASE_KEY"),
+    /** Correos de invitación. Sin clave, el aviso responde 503 y la invitación igual queda hecha. */
+    RESEND_API_KEY: texto("RESEND_API_KEY"),
+    /** Remitente. onboarding@resend.dev solo entrega a la cuenta dueña de Resend: verificá un dominio. */
+    MAIL_FROM: texto("MAIL_FROM") || "mi_desorden <onboarding@resend.dev>",
+    /**
+     * URL pública de la API para los enlaces de los correos. Nunca sale de los
+     * headers del request (se podrían falsear). En Vercel alcanza con la URL de producción.
+     */
+    API_PUBLIC_URL: (
+      texto("API_PUBLIC_URL") ||
+      (texto("VERCEL_PROJECT_PRODUCTION_URL")
+        ? `https://${texto("VERCEL_PROJECT_PRODUCTION_URL")}`
+        : `http://localhost:${texto("PORT") || 3000}`)
+    ).replace(/\/$/, ""),
     AUTH_MAX_FALLOS: Number(texto("AUTH_MAX_FALLOS") || 10),
     AUTH_BLOQUEO_MIN: Number(texto("AUTH_BLOQUEO_MIN") || 15),
   };
