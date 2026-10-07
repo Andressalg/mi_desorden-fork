@@ -55,12 +55,21 @@ export interface Miembro {
   en_linea: boolean;
 }
 
+/** Invitación a un correo que todavía no tiene cuenta. Solo la ve el dueño. */
+export interface InvitacionPendiente {
+  email: string;
+  rol: Exclude<Rol, "dueño">;
+  creado_en: string;
+}
+
 export interface Inventario {
   id: string;
   nombre: string;
   /** "Depósito", "Tienda centro", "Garage". */
   lugar: string;
   miembros: Miembro[];
+  /** Vacío si no soy el dueño. */
+  pendientes: InvitacionPendiente[];
   total_productos: number;
   creado_en: string;
 }

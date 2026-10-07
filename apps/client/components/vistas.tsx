@@ -1,11 +1,33 @@
+import type { Inventario } from "@mi-desorden/core";
+import {
+  Button,
+  Host,
+  HStack,
+  Image as ImagenSF,
+  Menu,
+  Picker,
+  Section,
+  Text as TextoSF,
+} from "@expo/ui/swift-ui";
+import {
+  font,
+  foregroundStyle,
+  kerning,
+  lineLimit,
+  pickerStyle,
+  tag,
+} from "@expo/ui/swift-ui/modifiers";
 import { useQuery } from "@tanstack/react-query";
+import * as Haptics from "expo-haptics";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useRef, useState, type ReactNode } from "react";
 import {
   AccessibilityInfo,
+  Alert,
   Animated,
   Easing,
   Image,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -18,6 +40,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { productos as productosApi } from "@/api";
 import { ANCHO_LECTURA, Icono, tocar } from "@/components/ui";
+import { confirmar } from "@/lib/confirmar";
 import { useStore } from "@/lib/store";
 import { useTema } from "@/lib/theme";
 
@@ -83,7 +106,15 @@ export function Vista({
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: t.fondo }}
-      contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: insets.bottom + 120 }}
+      // En iOS las tabs nativas ajustan solas los márgenes del primer scroll (zona segura
+      // arriba, tab bar abajo): si además se suma insets.top, el título baja ~60 pt.
+      // En Android no lo hacen, así que ahí van a mano.
+      contentInsetAdjustmentBehavior="automatic"
+      contentContainerStyle={
+        Platform.OS === "ios"
+          ? { paddingTop: 8, paddingBottom: 32 }
+          : { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 120 }
+      }
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="interactive"
       showsVerticalScrollIndicator={false}
@@ -94,35 +125,89 @@ export function Vista({
   );
 }
 
-/** Título grande con una línea chica arriba (estado o inventario) y una acción a la derecha. */
+/**
+ * Título grande con una línea chica arriba (estado o inventario) y una acción a
+ * la derecha. Si se pasa `alTocar`, el título (o la línea de arriba, con
+ * `tocarSobre`) abre el selector de inventario con un chevron ⌄.
+ */
 export function Encabezado({
   sobre,
   punto,
   titulo,
   accion,
+  alTocar,
+  tocarSobre = false,
   style,
 }: {
   sobre?: string;
   punto?: string;
   titulo: string;
   accion?: ReactNode;
+  alTocar?: () => void;
+  /** El selector va en la línea de arriba (Accesos) en vez de en el título. */
+  tocarSobre?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
   const t = useTema();
+  const sobreTocable = !!alTocar && tocarSobre;
+  const tituloTocable = !!alTocar && !tocarSobre;
+  const lineaSobre = sobre ? (
+    <View style={s.sobre}>
+      {punto ? <View style={[s.punto, { backgroundColor: punto }]} /> : null}
+      <Text
+        style={[s.sobreTexto, { color: sobreTocable ? t.tinte : t.textoSec }]}
+        numberOfLines={1}
+      >
+        {sobre}
+      </Text>
+      {sobreTocable ? (
+        <Icono sf="chevron.down" ion="chevron-down" size={11} color={t.tinte} weight="bold" />
+      ) : null}
+    </View>
+  ) : null;
+  const lineaTitulo = (
+    <View style={s.tituloFila}>
+      <Text style={[s.titulo, { color: t.texto, flexShrink: 1 }]} numberOfLines={1}>
+        {titulo}
+      </Text>
+      {tituloTocable ? (
+        <Icono sf="chevron.down" ion="chevron-down" size={20} color={t.textoTer} weight="bold" />
+      ) : null}
+    </View>
+  );
+  // En iOS el selector es el menú nativo; en Android/web, un Alert.
+  const menuIos = Platform.OS === "ios" && !!alTocar;
+  const tocable = (hijo: ReactNode, hint: string) => (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityHint={hint}
+      hitSlop={6}
+      onPress={() => (tocar(), alTocar?.())}
+      style={({ pressed }) => [
+        { alignSelf: "flex-start", maxWidth: "100%" },
+        pressed && { opacity: 0.6 },
+      ]}
+    >
+      {hijo}
+    </Pressable>
+  );
   return (
     <Animated.View style={[s.encabezado, style]}>
       <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-        {sobre ? (
-          <View style={s.sobre}>
-            {punto ? <View style={[s.punto, { backgroundColor: punto }]} /> : null}
-            <Text style={[s.sobreTexto, { color: t.textoSec }]} numberOfLines={1}>
-              {sobre}
-            </Text>
-          </View>
-        ) : null}
-        <Text style={[s.titulo, { color: t.texto }]} numberOfLines={1}>
-          {titulo}
-        </Text>
+        {sobreTocable && sobre && menuIos ? (
+          <MenuInventario texto={sobre} variante="sobre" />
+        ) : sobreTocable && lineaSobre ? (
+          tocable(lineaSobre, "Cambiar de inventario")
+        ) : (
+          lineaSobre
+        )}
+        {tituloTocable && menuIos ? (
+          <MenuInventario texto={titulo} variante="titulo" />
+        ) : tituloTocable ? (
+          tocable(lineaTitulo, "Cambiar de inventario, crear uno o eliminarlo")
+        ) : (
+          lineaTitulo
+        )}
       </View>
       {accion}
     </Animated.View>
@@ -157,59 +242,146 @@ export function BotonRedondo({
   );
 }
 
-/** Píldoras para cambiar de inventario; el activo va en negro (blanco en modo oscuro). */
-export function PildorasInventario({
-  conNuevo = true,
-  style,
+/**
+ * Menú de un inventario (se abre manteniendo presionado): el dueño lo puede
+ * eliminar; el resto, salir de él.
+ */
+export function useMenuInventario() {
+  const { usuario, eliminarInventario, salirDeInventario } = useStore();
+  const avisarError = (titulo: string) => (e: Error) => Alert.alert(titulo, e.message);
+  return (inv: Inventario) => {
+    if (Platform.OS !== "web")
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    const dueño = inv.miembros.find((m) => m.usuario_id === usuario?.id)?.rol === "dueño";
+    if (dueño) {
+      const otros = inv.miembros.length - 1;
+      confirmar(
+        `¿Eliminar “${inv.nombre}”?`,
+        `Se borran sus ${inv.total_productos} productos y sus fotos` +
+          (otros > 0
+            ? `, y ${otros === 1 ? "la otra persona deja" : `las otras ${otros} personas dejan`} de verlo`
+            : "") +
+          ". No se puede deshacer.",
+        "Eliminar",
+        () => void eliminarInventario(inv.id).catch(avisarError("No se pudo eliminar")),
+      );
+    } else {
+      confirmar(
+        `¿Salir de “${inv.nombre}”?`,
+        "Vas a dejar de verlo. El dueño te puede volver a invitar.",
+        "Salir",
+        () => void salirDeInventario(inv.id).catch(avisarError("No se pudo salir")),
+      );
+    }
+  };
+}
+
+/**
+ * Menú desplegable nativo (SwiftUI, como el título de Notas o Archivos) para
+ * cambiar de inventario, crear uno o eliminar/salir del actual. Solo iOS: en
+ * Android y web el encabezado usa el selector con Alert.
+ */
+function MenuInventario({
+  texto,
+  variante,
 }: {
-  conNuevo?: boolean;
-  style?: StyleProp<ViewStyle>;
+  texto: string;
+  /** "titulo": el título grande (Inventario). "sobre": la línea chica de arriba (Accesos). */
+  variante: "titulo" | "sobre";
 }) {
   const t = useTema();
-  const { inventarios, activo, seleccionarInventario } = useStore();
-  return (
-    <Animated.View style={style}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={{ marginHorizontal: -16, flexGrow: 0 }}
-        contentContainerStyle={{ gap: 8, paddingHorizontal: 16 }}
+  const { inventarios, activo, usuario, seleccionarInventario } = useStore();
+  const menu = useMenuInventario();
+  const dueño =
+    !!activo && activo.miembros.some((m) => m.rol === "dueño" && m.usuario_id === usuario?.id);
+  const grande = variante === "titulo";
+
+  const etiqueta = (
+    <HStack spacing={grande ? 6 : 4} alignment="center">
+      <TextoSF
+        modifiers={[
+          font({ size: grande ? 34 : 13, weight: grande ? "bold" : "regular" }),
+          kerning(grande ? -0.8 : 0),
+          foregroundStyle(grande ? t.texto : t.tinte),
+          lineLimit(1),
+        ]}
       >
-        {inventarios.map((inv) => {
-          const sel = inv.id === activo?.id;
-          return (
-            <Pressable
-              key={inv.id}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: sel }}
-              onPress={() => (tocar(), seleccionarInventario(inv.id))}
-              style={({ pressed }) => [
-                s.pildora,
-                { backgroundColor: sel ? t.texto : t.celda, opacity: pressed ? 0.75 : 1 },
-              ]}
-            >
-              <Text style={[s.pildoraTexto, { color: sel ? t.fondo : t.texto }]} numberOfLines={1}>
-                {inv.nombre}
-              </Text>
-            </Pressable>
-          );
-        })}
-        {conNuevo ? (
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => (tocar(), router.push("/inventario-nuevo"))}
-            style={({ pressed }) => [
-              s.pildora,
-              s.pildoraNueva,
-              { borderColor: t.textoTer, opacity: pressed ? 0.6 : 1 },
-            ]}
-          >
-            <Text style={[s.pildoraTexto, { color: t.textoSec }]}>+ Nuevo</Text>
-          </Pressable>
-        ) : null}
-      </ScrollView>
-    </Animated.View>
+        {texto}
+      </TextoSF>
+      <ImagenSF
+        systemName="chevron.down"
+        size={grande ? 18 : 11}
+        color={grande ? t.textoTer : t.tinte}
+        modifiers={[font({ size: grande ? 18 : 11, weight: "bold" })]}
+      />
+    </HStack>
   );
+
+  return (
+    <Host matchContents style={{ alignSelf: "flex-start", maxWidth: "100%" }}>
+      <Menu label={etiqueta}>
+        <Picker
+          label="Inventarios"
+          selection={activo?.id ?? null}
+          onSelectionChange={(id: string | null) => id && seleccionarInventario(id)}
+          modifiers={[pickerStyle("inline")]}
+        >
+          {inventarios.map((i) => (
+            <TextoSF key={i.id} modifiers={[tag(i.id)]}>
+              {i.nombre}
+            </TextoSF>
+          ))}
+        </Picker>
+        <Section>
+          <Button
+            label="Nuevo inventario"
+            systemImage="plus"
+            onPress={() => router.push("/inventario-nuevo")}
+          />
+          {activo ? (
+            <Button
+              role="destructive"
+              label={dueño ? "Eliminar inventario" : "Salir del inventario"}
+              systemImage={dueño ? "trash" : "rectangle.portrait.and.arrow.right"}
+              onPress={() => menu(activo)}
+            />
+          ) : null}
+        </Section>
+      </Menu>
+    </Host>
+  );
+}
+
+/**
+ * Selector de inventario para Android y web (en iOS va MenuInventario): los
+ * otros inventarios, "Nuevo inventario…" y eliminar/salir del actual.
+ */
+export function useSelectorInventario() {
+  const { inventarios, activo, usuario, seleccionarInventario } = useStore();
+  const menu = useMenuInventario();
+  return () => {
+    const otros = inventarios.filter((i) => i.id !== activo?.id);
+    const dueño =
+      !!activo && activo.miembros.some((m) => m.rol === "dueño" && m.usuario_id === usuario?.id);
+    const nuevo = () => router.push("/inventario-nuevo");
+    const quitar = activo ? () => menu(activo) : undefined;
+    const etiquetaQuitar = activo
+      ? dueño
+        ? `Eliminar «${activo.nombre}»`
+        : `Salir de «${activo.nombre}»`
+      : undefined;
+
+    // Android / web: Alert admite pocos botones; alcanza para el MVP.
+    Alert.alert(activo ? activo.nombre : "Inventarios", undefined, [
+      ...otros
+        .slice(0, 1)
+        .map((i) => ({ text: i.nombre, onPress: () => seleccionarInventario(i.id) })),
+      { text: "Nuevo inventario…", onPress: nuevo },
+      ...(etiquetaQuitar
+        ? [{ text: etiquetaQuitar, style: "destructive" as const, onPress: quitar }]
+        : []),
+    ]);
+  };
 }
 
 /** Selector segmentado con pulgar que se desliza (filtros, roles). */
@@ -398,6 +570,7 @@ const s = StyleSheet.create({
   sobre: { flexDirection: "row", alignItems: "center", gap: 6 },
   punto: { width: 7, height: 7, borderRadius: 4 },
   sobreTexto: { fontSize: 13, flexShrink: 1 },
+  tituloFila: { flexDirection: "row", alignItems: "center", gap: 6 },
   titulo: { fontSize: 34, fontWeight: "700", letterSpacing: -0.8 },
   redondo: {
     width: 44,
@@ -411,15 +584,6 @@ const s = StyleSheet.create({
     shadowRadius: 3,
     shadowOffset: { width: 0, height: 1 },
   },
-  pildora: {
-    height: 34,
-    paddingHorizontal: 14,
-    borderRadius: 17,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  pildoraNueva: { backgroundColor: "transparent", borderWidth: 1, borderStyle: "dashed" },
-  pildoraTexto: { fontSize: 15, fontWeight: "600", letterSpacing: -0.2 },
   segmento: { flexDirection: "row", padding: 2 },
   segmentoPulgar: {
     position: "absolute",

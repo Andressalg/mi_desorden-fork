@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Stepper } from "@/components/Stepper";
 import { FotoProducto } from "@/components/vistas";
-import { CampoFila, Contenido, Fila, Grupo, Icono, tocar } from "@/components/ui";
+import { BotonPrincipal, CampoFila, Contenido, Fila, Grupo, Icono, tocar } from "@/components/ui";
 import { confirmar } from "@/lib/confirmar";
 import { haceCuanto } from "@/lib/fecha";
 import { puedeEditar, useStore } from "@/lib/store";
@@ -85,9 +85,6 @@ export default function ProductoForm() {
         options={{
           title: existente ? "Producto" : "Nuevo producto",
           headerLeft: () => textoHeader("Cancelar", () => router.back()),
-          headerRight: editable
-            ? () => textoHeader(existente ? "Listo" : "Agregar", guardar, true, !valido)
-            : undefined,
         }}
       />
       <Contenido
@@ -168,6 +165,14 @@ export default function ProductoForm() {
             })}
           </View>
         </Grupo>
+
+        {/* En el contenido y no en el encabezado: en iOS 26 los botones del encabezado
+            del modal perdían el primer toque con el teclado abierto. */}
+        {editable ? (
+          <BotonPrincipal onPress={guardar} deshabilitado={!valido} cargando={guardando}>
+            {existente ? "Guardar cambios" : "Agregar al inventario"}
+          </BotonPrincipal>
+        ) : null}
 
         {existente && (existente.foto_path || editable) ? (
           <Grupo

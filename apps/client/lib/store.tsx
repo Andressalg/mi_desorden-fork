@@ -5,6 +5,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import {
   auth,
   escucharInventario,
+  escucharMisAccesos,
   inventarios as inventariosApi,
   miembros,
   productos as productosApi,
@@ -102,6 +103,12 @@ function useEstado() {
     [qc, uid],
   );
 
+  // Cuando alguien me da acceso a un inventario, aparece sin tener que actualizar.
+  useEffect(() => {
+    if (!uid || !enVivo) return;
+    return escucharMisAccesos(uid, () => void refrescarInventarios());
+  }, [uid, enVivo, refrescarInventarios]);
+
   // Realtime del inventario activo.
   useEffect(() => {
     if (!activo || !uid || !enVivo) return;
@@ -124,6 +131,20 @@ function useEstado() {
       setPresentes(new Set());
     };
   }, [activo?.id, uid, enVivo, ponerProducto, sacarProducto, refrescarInventarios]);
+
+  /**
+   * Saca un inventario de la lista al instante (después de borrarlo o salir) y
+   * después confirma con la base: no depende de que el refetch llegue a tiempo.
+   */
+  const sacarInventario = (invId: string) => {
+    qc.setQueryData<Inventario[]>(["inventarios", uid], (l) => l?.filter((i) => i.id !== invId));
+    qc.removeQueries({ queryKey: ["productos", invId] });
+    if (activoId === invId || !activoId) {
+      setActivoId(null);
+      AsyncStorage.removeItem(CLAVE_ACTIVO).catch(() => {});
+    }
+    void refrescarInventarios();
+  };
 
   const acciones = {
     registrar: auth.registrar,
@@ -182,8 +203,32 @@ function useEstado() {
 
     async crearInventario(nombre: string, lugar: string) {
       const id = await inventariosApi.crear(nombre, lugar);
-      await refrescarInventarios();
+      // Se agrega a la lista al instante (el trigger de la base me deja como dueño)
+      // y después se confirma con la base, sin depender de que el refetch llegue.
+      if (usuario) {
+        const nuevo: Inventario = {
+          id,
+          nombre: nombre.trim(),
+          lugar: lugar.trim(),
+          creado_en: new Date().toISOString(),
+          total_productos: 0,
+          pendientes: [],
+          miembros: [
+            {
+              usuario_id: usuario.id,
+              rol: "dueño",
+              nombre: usuario.nombre,
+              email: usuario.email,
+              en_linea: true,
+            },
+          ],
+        };
+        qc.setQueryData<Inventario[]>(["inventarios", uid], (l) =>
+          l?.some((i) => i.id === id) ? l : [...(l ?? []), nuevo],
+        );
+      }
       acciones.seleccionarInventario(id);
+      void refrescarInventarios();
     },
 
     async guardarProducto(productoId: string | null, input: ProductoInput) {
@@ -224,9 +269,51 @@ function useEstado() {
       await refrescarInventarios();
     },
 
+    /**
+     * Da acceso a la misma persona en varios inventarios a la vez. No corta en
+     * el primer error: devuelve en cuáles salió y en cuáles no.
+     */
+    async invitarEnVarios(invIds: string[], email: string, rol: Exclude<Rol, "dueño">) {
+      const resultados = await Promise.allSettled(
+        invIds.map((id) => miembros.invitar(id, email, rol)),
+      );
+      const ok = invIds.filter((_, i) => resultados[i]!.status === "fulfilled");
+      const error = resultados.find((r): r is PromiseRejectedResult => r.status === "rejected");
+      // "pendiente" = todavía no tiene cuenta (en todos los que salieron).
+      const pendiente =
+        ok.length > 0 &&
+        resultados.every((r) => r.status !== "fulfilled" || r.value === "pendiente");
+      // El correo es un extra: si falla, el acceso igual quedó dado.
+      const correo = ok.length
+        ? await miembros
+            .avisar(email, ok)
+            .then(() => true)
+            .catch(() => false)
+        : false;
+      await refrescarInventarios();
+      return { ok, pendiente, correo, error: error ? (error.reason as Error) : null };
+    },
+
+    async cancelarInvitacion(invId: string, email: string) {
+      await miembros.cancelarInvitacion(invId, email);
+      await refrescarInventarios();
+    },
+
     async cambiarRol(invId: string, usuarioId: string, rol: Rol) {
       await miembros.cambiarRol(invId, usuarioId, rol);
       await refrescarInventarios();
+    },
+
+    async eliminarInventario(invId: string) {
+      await inventariosApi.eliminar(invId);
+      sacarInventario(invId);
+    },
+
+    /** Dejar un inventario ajeno (la base deja que cualquiera se quite a sí mismo). */
+    async salirDeInventario(invId: string) {
+      if (!uid) return;
+      await miembros.quitar(invId, uid);
+      sacarInventario(invId);
     },
 
     async quitarMiembro(invId: string, usuarioId: string) {

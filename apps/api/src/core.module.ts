@@ -5,6 +5,7 @@ import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { AuthModule } from "./modules/auth/auth.module";
 import { DetectionsModule } from "./modules/detections/detections.module";
 import { HealthModule } from "./modules/health/health.module";
+import { InvitacionesModule } from "./modules/invitaciones/invitaciones.module";
 import { SesionGuard } from "./shared/auth/sesion.guard";
 import { validarEnv } from "./shared/config/env";
 import { SharedModule } from "./shared/shared.module";
@@ -19,6 +20,7 @@ import { SharedModule } from "./shared/shared.module";
     HealthModule,
     AuthModule,
     DetectionsModule,
+    InvitacionesModule,
   ],
   providers: [
     // El orden importa: primero el rate limit, después la sesión.

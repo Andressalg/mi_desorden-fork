@@ -1,7 +1,7 @@
 import { router, Stack } from "expo-router";
 import { useState } from "react";
 import { Pressable, Text } from "react-native";
-import { CampoFila, Contenido, Grupo } from "@/components/ui";
+import { BotonPrincipal, CampoFila, Contenido, Grupo } from "@/components/ui";
 import { useStore } from "@/lib/store";
 import { tipo, useTema } from "@/lib/theme";
 
@@ -45,31 +45,37 @@ export default function InventarioNuevo() {
       <Stack.Screen
         options={{
           headerLeft: () => boton("Cancelar", () => router.back()),
-          headerRight: () => boton("Crear", crear, true, !valido),
         }}
       />
       <Contenido contentInsetAdjustmentBehavior="never" contentContainerStyle={{ paddingTop: 16 }}>
         <Grupo
           pie={
             error ??
-            "Cada inventario tiene sus productos, sus cámaras y su propia gente con acceso."
+            "Por ejemplo: Depósito, Taller o Casa. Cada inventario tiene sus productos y su propia gente con acceso."
           }
           pieError={!!error}
         >
           <CampoFila
-            placeholder="Nombre (ej. Bodega norte)"
+            placeholder="Nombre"
             value={nombre}
             onChangeText={setNombre}
             autoFocus
+            returnKeyType="done"
             onSubmitEditing={crear}
           />
           <CampoFila
-            placeholder="Lugar (ej. Pasillo 3)"
+            placeholder="Lugar (opcional)"
             value={lugar}
             onChangeText={setLugar}
+            returnKeyType="done"
             onSubmitEditing={crear}
           />
         </Grupo>
+        {/* En el contenido y no en el encabezado: en iOS 26 los botones del encabezado
+            del modal perdían el primer toque con el teclado abierto. */}
+        <BotonPrincipal onPress={crear} deshabilitado={!valido} cargando={guardando}>
+          Crear inventario
+        </BotonPrincipal>
       </Contenido>
     </>
   );

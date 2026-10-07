@@ -4,7 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { Animated, Pressable, StyleSheet, Switch, Text, View } from "react-native";
 import { config } from "@/api";
 import { Icono, IconoCelda, tocar } from "@/components/ui";
-import { Seccion, Separador, Tarjeta, useEntrada, Vista } from "@/components/vistas";
+import {
+  Seccion,
+  Separador,
+  Tarjeta,
+  useEntrada,
+  useMenuInventario,
+  Vista,
+} from "@/components/vistas";
 import { iniciales } from "@/lib/fecha";
 import { useStore } from "@/lib/store";
 import { useTema } from "@/lib/theme";
@@ -14,6 +21,7 @@ export default function Perfil() {
   const { usuario, inventarios, seleccionarInventario, enVivo, setEnVivo, cerrarSesion } =
     useStore();
   const entrada = useEntrada(5);
+  const menu = useMenuInventario();
   // Cerrar sesión pide un segundo toque en 3 s (sin alerta), como el diseño.
   const [seguro, setSeguro] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -44,7 +52,15 @@ export default function Perfil() {
         <Text style={[s.email, { color: t.textoSec }]}>{usuario.email}</Text>
       </Animated.View>
 
-      <Seccion titulo="Mis inventarios" style={entrada(1)}>
+      <Seccion
+        titulo="Mis inventarios"
+        pie={
+          inventarios.length
+            ? "Mantené presionado un inventario para eliminarlo o salir."
+            : undefined
+        }
+        style={entrada(1)}
+      >
         <Tarjeta>
           {inventarios.length ? (
             inventarios.map((inv, i) => (
@@ -57,6 +73,9 @@ export default function Perfil() {
                     seleccionarInventario(inv.id);
                     router.navigate("/");
                   }}
+                  onLongPress={() => menu(inv)}
+                  delayLongPress={400}
+                  accessibilityHint="Mantené presionado para eliminarlo o salir"
                   style={({ pressed }) => [
                     s.fila,
                     { minHeight: 60 },

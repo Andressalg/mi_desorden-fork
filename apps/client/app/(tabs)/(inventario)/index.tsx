@@ -16,11 +16,11 @@ import { BotonPrincipal, Icono, tocar, Vacio } from "@/components/ui";
 import {
   BotonRedondo,
   Encabezado,
-  PildorasInventario,
   SegmentadoAnimado,
   Separador,
   Tarjeta,
   useEntrada,
+  useSelectorInventario,
   Vista,
 } from "@/components/vistas";
 import { haceCuanto } from "@/lib/fecha";
@@ -36,6 +36,7 @@ export default function Inventario() {
   const [busqueda, setBusqueda] = useState("");
   const [filtro, setFiltro] = useState<Filtro>("todos");
   const entrada = useEntrada(5);
+  const elegirInventario = useSelectorInventario();
 
   // Re-render cada 15 s para que "hace X min" no quede viejo.
   const [, setTick] = useState(0);
@@ -79,7 +80,20 @@ export default function Inventario() {
   if (!cargando && !errorCarga && !activo) {
     return (
       <Vista>
-        <Encabezado titulo="Inventario" style={entrada(0)} />
+        <Encabezado
+          sobre={enVivo ? "En vivo" : "En vivo pausado"}
+          punto={enVivo ? t.verde : "#8E8E93"}
+          titulo="Inventario"
+          accion={
+            <BotonRedondo
+              sf="plus"
+              ion="add"
+              etiqueta="Crear inventario"
+              onPress={() => router.push("/inventario-nuevo")}
+            />
+          }
+          style={entrada(0)}
+        />
         <Vacio
           sf="shippingbox"
           ion="cube-outline"
@@ -103,6 +117,7 @@ export default function Inventario() {
         sobre={estado}
         punto={enVivo ? t.verde : "#8E8E93"}
         titulo={activo?.nombre ?? "Inventario"}
+        alTocar={activo ? elegirInventario : undefined}
         accion={
           editable && activo ? (
             <BotonRedondo
@@ -115,8 +130,6 @@ export default function Inventario() {
         }
         style={entrada(0)}
       />
-
-      <PildorasInventario style={entrada(1)} />
 
       {cargando ? <ActivityIndicator style={{ marginTop: 32 }} /> : null}
       {!cargando && errorCarga ? (
