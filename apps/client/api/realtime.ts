@@ -7,6 +7,7 @@ export interface EventosInventario {
   /** Llega sin filtrar por inventario (limitación de Realtime): ignorar ids que no conozcas. */
   productoEliminado: (id: string) => void;
   miembrosCambiaron: () => void;
+  categoriasCambiaron: () => void;
   /** Ids de usuario que tienen el inventario abierto ahora. */
   presentes: (ids: Set<string>) => void;
 }
@@ -37,6 +38,11 @@ export function escucharInventario(inventarioId: string, usuarioId: string, on: 
       "postgres_changes",
       { event: "*", schema: "public", table: "invitaciones", filter: filtro },
       () => on.miembrosCambiaron(),
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "categorias", filter: filtro },
+      () => on.categoriasCambiaron(),
     )
     .on("presence", { event: "sync" }, () =>
       on.presentes(new Set(Object.keys(canal.presenceState()))),

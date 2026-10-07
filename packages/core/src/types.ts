@@ -74,10 +74,23 @@ export interface Inventario {
   creado_en: string;
 }
 
+/** Carpeta de productos. Un solo nivel de subcategorías (padre_id). */
+export interface Categoria {
+  id: string;
+  inventario_id: string;
+  /** Null = categoría principal. */
+  padre_id: string | null;
+  nombre: string;
+  creado_en: string;
+}
+
 export interface Producto {
   id: string;
   inventario_id: string;
   nombre: string;
+  /** Null solo en productos viejos que no tenían categoría. */
+  categoria_id: string | null;
+  /** @deprecated Texto viejo; la categoría es categoria_id. */
   categoria: string;
   cantidad: number;
   /** Por debajo de esto se marca como stock bajo. */
@@ -94,7 +107,7 @@ export interface Producto {
 
 export type ProductoInput = Pick<
   Producto,
-  "nombre" | "categoria" | "cantidad" | "minimo" | "ubicacion" | "led"
+  "nombre" | "categoria_id" | "cantidad" | "minimo" | "ubicacion" | "led"
 >;
 
 /** Lo que devuelve GET /auth/me: la sesión según el JWT de Supabase. */

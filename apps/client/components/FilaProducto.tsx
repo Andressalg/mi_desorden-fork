@@ -12,8 +12,19 @@ export function estadoStock(t: Tema, p: Producto) {
   return { texto: "", color: t.texto };
 }
 
-/** Fila de producto. Se ilumina un instante cuando cambia en vivo (otra persona o la cámara). */
-export function FilaProducto({ producto, onPress }: { producto: Producto; onPress: () => void }) {
+/**
+ * Fila de producto. Se ilumina un instante cuando cambia en vivo (otra persona
+ * o la cámara). `categoria` se muestra solo si se pasa (fuera de las carpetas).
+ */
+export function FilaProducto({
+  producto,
+  categoria,
+  onPress,
+}: {
+  producto: Producto;
+  categoria?: string;
+  onPress: () => void;
+}) {
   const t = useTema();
   const brillo = useRef(new Animated.Value(0)).current;
   const anterior = useRef(producto.actualizado_en);
@@ -49,7 +60,9 @@ export function FilaProducto({ producto, onPress }: { producto: Producto; onPres
                 <Icono sf="camera.fill" ion="videocam" size={11} color={t.textoSec} />
               ) : null}
               <Text style={[tipo.nota, { color: t.textoSec, flexShrink: 1 }]} numberOfLines={1}>
-                {producto.ubicacion} · {producto.categoria} · {haceCuanto(producto.actualizado_en)}
+                {[producto.ubicacion, categoria, haceCuanto(producto.actualizado_en)]
+                  .filter(Boolean)
+                  .join(" · ")}
               </Text>
             </View>
           </View>
