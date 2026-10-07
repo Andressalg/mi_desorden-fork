@@ -235,7 +235,7 @@ export default function Inventario() {
             <View style={[s.buscar, { backgroundColor: t.relleno }]}>
               <Icono sf="magnifyingglass" ion="search" size={17} color={t.textoSec} />
               <TextInput
-                placeholder="Buscar productos, estantes…"
+                placeholder="Buscar productos, lugares…"
                 placeholderTextColor={t.textoTer}
                 value={busqueda}
                 onChangeText={setBusqueda}

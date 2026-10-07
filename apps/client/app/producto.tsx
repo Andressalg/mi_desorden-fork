@@ -154,7 +154,7 @@ export default function ProductoForm() {
           pie="La cámara busca el LED de este color para reconocer el hueco del producto."
         >
           <CampoFila
-            etiqueta="Estante"
+            etiqueta="Lugar"
             placeholder="A1"
             value={ubicacion}
             onChangeText={setUbicacion}

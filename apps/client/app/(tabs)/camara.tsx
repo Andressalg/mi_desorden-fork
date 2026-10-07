@@ -290,7 +290,7 @@ function Resultado({
                   {escaneo.producto.nombre}
                 </Text>
                 <Text style={[tipo.nota, { color: t.textoSec }]} numberOfLines={1}>
-                  Estante {escaneo.producto.ubicacion} · {escaneo.producto.cantidad} en inventario
+                  Lugar {escaneo.producto.ubicacion} · {escaneo.producto.cantidad} en inventario
                 </Text>
               </View>
               <BotonVidrio etiqueta="Cerrar" sf="xmark" ion="close" tam={32} onPress={onCerrar} />
