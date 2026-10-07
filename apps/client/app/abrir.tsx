@@ -18,5 +18,5 @@ export default function Abrir() {
     // Una vez por enlace: las funciones del store cambian en cada render.
   }, [inv]);
 
-  return <Redirect href="/" />;
+  return <Redirect href="/(tabs)/(inventario)" />;
 }

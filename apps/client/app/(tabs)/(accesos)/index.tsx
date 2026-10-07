@@ -40,7 +40,10 @@ export default function Accesos() {
   const [email, setEmail] = useState("");
   const [rol, setRol] = useState<RolInvitable>("editor");
   const [enviando, setEnviando] = useState(false);
-  const [aviso, setAviso] = useState<{ texto: string; error: boolean } | null>(null);
+  // neutro: salió a medias (acceso dado pero sin correo), ni verde ni rojo.
+  const [aviso, setAviso] = useState<{ texto: string; error: boolean; neutro?: boolean } | null>(
+    null,
+  );
   const entrada = useEntrada(4);
   const elegirInventario = useSelectorInventario();
 
@@ -121,6 +124,7 @@ export default function Accesos() {
           (avisado ? "" : " No se pudo mandar el correo: avisale vos.") +
           (error ? ` En los otros no se pudo: ${error.message}` : ""),
         error: !!error,
+        neutro: !avisado,
       });
       setEmail("");
     } finally {
@@ -158,7 +162,15 @@ export default function Accesos() {
     );
   }
 
-  const colorAviso = aviso ? (aviso.error ? t.rojo : t.oscuro ? t.verde : "#248A3D") : t.textoSec;
+  const colorAviso = !aviso
+    ? t.textoSec
+    : aviso.error
+      ? t.rojo
+      : aviso.neutro
+        ? t.texto
+        : t.oscuro
+          ? t.verde
+          : "#248A3D";
 
   return (
     <Vista>
