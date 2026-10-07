@@ -6,6 +6,7 @@
  * - detecciones → API de Nest (con el access token de Supabase)
  */
 export { auth } from "./auth";
+export { categorias } from "./categorias";
 export { config } from "./config";
 export { detecciones } from "./detecciones";
 export { mensajeError } from "./errores";

@@ -2,6 +2,7 @@ import type { LedColor } from "@mi-desorden/core";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { MenuCategoria } from "@/components/menus";
 import { Stepper } from "@/components/Stepper";
 import { FotoProducto } from "@/components/vistas";
 import { BotonPrincipal, CampoFila, Contenido, Fila, Grupo, Icono, tocar } from "@/components/ui";
@@ -14,14 +15,25 @@ const LEDS: LedColor[] = ["verde", "azul", "amarillo", "rojo", "violeta"];
 
 export default function ProductoForm() {
   const t = useTema();
-  const { id } = useLocalSearchParams<{ id?: string }>();
-  const { productosActivos, guardarProducto, eliminarProducto, quitarFotoProducto, miRol } =
-    useStore();
+  // categoria: viene preelegida al crear el producto desde una carpeta.
+  const params = useLocalSearchParams<{ id?: string; categoria?: string }>();
+  const id = params.id;
+  const {
+    productosActivos,
+    categoriasActivas,
+    guardarProducto,
+    eliminarProducto,
+    quitarFotoProducto,
+    miRol,
+  } = useStore();
   const existente = id ? productosActivos.find((p) => p.id === id) : undefined;
   const editable = puedeEditar(miRol);
 
   const [nombre, setNombre] = useState(existente?.nombre ?? "");
-  const [categoria, setCategoria] = useState(existente?.categoria ?? "");
+  const [categoriaId, setCategoriaId] = useState<string | null>(
+    existente?.categoria_id ?? params.categoria ?? null,
+  );
+  const categoriaValida = !!categoriaId && categoriasActivas.some((c) => c.id === categoriaId);
   const [cantidad, setCantidad] = useState(existente?.cantidad ?? 1);
   const [minimo, setMinimo] = useState(existente?.minimo ?? 1);
   const [ubicacion, setUbicacion] = useState(existente?.ubicacion ?? "");
@@ -30,7 +42,8 @@ export default function ProductoForm() {
 
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const valido = nombre.trim().length > 0 && ubicacion.trim().length > 0 && !guardando;
+  const valido =
+    nombre.trim().length > 0 && ubicacion.trim().length > 0 && categoriaValida && !guardando;
 
   async function guardar() {
     if (!valido) return;
@@ -39,7 +52,7 @@ export default function ProductoForm() {
     try {
       await guardarProducto(existente?.id ?? null, {
         nombre: nombre.trim(),
-        categoria: categoria.trim() || "General",
+        categoria_id: categoriaId,
         cantidad,
         minimo,
         ubicacion: ubicacion.trim().toUpperCase(),
@@ -99,11 +112,17 @@ export default function ProductoForm() {
             editable={editable}
             autoFocus={!existente}
           />
-          <CampoFila
-            placeholder="Categoría"
-            value={categoria}
-            onChangeText={setCategoria}
-            editable={editable}
+          <Fila
+            titulo="Categoría"
+            derecha={
+              <MenuCategoria
+                categorias={categoriasActivas}
+                valor={categoriaValida ? categoriaId : null}
+                onCambio={setCategoriaId}
+                onNueva={() => router.push("/categoria")}
+                editable={editable}
+              />
+            }
           />
         </Grupo>
 

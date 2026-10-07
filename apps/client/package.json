@@ -12,7 +12,7 @@
     "dev:local": "expo start",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf .expo dist node_modules .turbo",
-    "test": "bun test api"
+    "test": "bun test api lib"
   },
   "dependencies": {
     "@expo/ui": "~57.0.21",

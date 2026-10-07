@@ -11,7 +11,9 @@ import {
   View,
 } from "react-native";
 import { mensajeError } from "@/api";
+import { Carpeta } from "@/components/Carpeta";
 import { FilaProducto } from "@/components/FilaProducto";
+import { MenuMas } from "@/components/menus";
 import { BotonPrincipal, Icono, tocar, Vacio } from "@/components/ui";
 import {
   BotonRedondo,
@@ -23,6 +25,7 @@ import {
   useSelectorInventario,
   Vista,
 } from "@/components/vistas";
+import { armarArbol, rutaCategoria } from "@/lib/categorias";
 import { haceCuanto } from "@/lib/fecha";
 import { puedeEditar, useStore } from "@/lib/store";
 import { useTema } from "@/lib/theme";
@@ -31,8 +34,26 @@ type Filtro = "todos" | "reponer" | "agotados";
 
 export default function Inventario() {
   const t = useTema();
-  const { activo, productosActivos, enVivo, miRol, cargando, errorCarga, refrescando, refrescar } =
-    useStore();
+  const {
+    activo,
+    productosActivos,
+    categoriasActivas,
+    enVivo,
+    miRol,
+    cargando,
+    errorCarga,
+    refrescando,
+    refrescar,
+  } = useStore();
+  // Carpetas abiertas. Se recuerdan mientras la pantalla está montada.
+  const [abiertas, setAbiertas] = useState<Set<string>>(new Set());
+  const alternar = (id: string) =>
+    setAbiertas((a) => {
+      const n = new Set(a);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
   const [busqueda, setBusqueda] = useState("");
   const [filtro, setFiltro] = useState<Filtro>("todos");
   const entrada = useEntrada(5);
@@ -49,7 +70,11 @@ export default function Inventario() {
     const q = busqueda.trim().toLowerCase();
     return productosActivos
       .filter(
-        (p) => !q || [p.nombre, p.categoria, p.ubicacion].some((c) => c.toLowerCase().includes(q)),
+        (p) =>
+          !q ||
+          [p.nombre, rutaCategoria(categoriasActivas, p.categoria_id), p.ubicacion].some((c) =>
+            c.toLowerCase().includes(q),
+          ),
       )
       .filter((p) =>
         filtro === "reponer"
@@ -59,7 +84,12 @@ export default function Inventario() {
             : true,
       )
       .sort((a, b) => a.ubicacion.localeCompare(b.ubicacion));
-  }, [productosActivos, busqueda, filtro]);
+  }, [productosActivos, categoriasActivas, busqueda, filtro]);
+
+  const arbol = useMemo(
+    () => armarArbol(categoriasActivas, productosActivos),
+    [categoriasActivas, productosActivos],
+  );
 
   const resumen = useMemo(() => {
     const unidades = productosActivos.reduce((a, p) => a + p.cantidad, 0);
@@ -120,11 +150,26 @@ export default function Inventario() {
         alTocar={activo ? elegirInventario : undefined}
         accion={
           editable && activo ? (
-            <BotonRedondo
-              sf="plus"
-              ion="add"
-              etiqueta="Agregar producto"
-              onPress={() => router.push("/producto")}
+            <MenuMas
+              etiqueta="Agregar"
+              grupos={[
+                [
+                  {
+                    etiqueta: "Nuevo producto",
+                    sf: "shippingbox",
+                    // Sin categorías todavía: primero se crea una y sigue con el producto.
+                    onPress: () =>
+                      categoriasActivas.length
+                        ? router.push("/producto")
+                        : router.push({ pathname: "/categoria", params: { luego: "producto" } }),
+                  },
+                  {
+                    etiqueta: "Nueva categoría",
+                    sf: "folder.badge.plus",
+                    onPress: () => router.push("/categoria"),
+                  },
+                ],
+              ]}
             />
           ) : undefined
         }
@@ -211,43 +256,91 @@ export default function Inventario() {
             />
           </Animated.View>
 
-          {/* Lista */}
-          <Animated.View style={[{ gap: 6 }, entrada(4)]}>
-            {lista.length ? (
+          {/* Lista: buscando o filtrando, plana; si no, en carpetas por categoría. */}
+          <Animated.View style={[{ gap: 12 }, entrada(4)]}>
+            {filtrando ? (
+              lista.length ? (
+                <View style={{ gap: 6 }}>
+                  <Tarjeta>
+                    {lista.map((p, i) => (
+                      <View key={p.id}>
+                        {i > 0 ? <Separador sangria={42} /> : null}
+                        <FilaProducto
+                          producto={p}
+                          categoria={rutaCategoria(categoriasActivas, p.categoria_id)}
+                          onPress={() =>
+                            router.push({ pathname: "/producto", params: { id: p.id } })
+                          }
+                        />
+                      </View>
+                    ))}
+                  </Tarjeta>
+                  <Text style={[s.pie, { color: t.textoSec }]}>
+                    {lista.length} de {productosActivos.length} productos
+                  </Text>
+                </View>
+              ) : (
+                <Vacio
+                  sf="magnifyingglass"
+                  ion="search"
+                  titulo="Sin resultados"
+                  texto="Probá con otra búsqueda o cambiá el filtro."
+                />
+              )
+            ) : arbol.raices.length || arbol.sinCategoria.length ? (
               <>
-                <Tarjeta>
-                  {lista.map((p, i) => (
-                    <View key={p.id}>
-                      {i > 0 ? <Separador sangria={42} /> : null}
-                      <FilaProducto
-                        producto={p}
-                        onPress={() => router.push({ pathname: "/producto", params: { id: p.id } })}
-                      />
-                    </View>
-                  ))}
-                </Tarjeta>
-                <Text style={[s.pie, { color: t.textoSec }]}>
-                  {lista.length} de {productosActivos.length} productos
-                </Text>
+                {arbol.raices.map((nodo) => (
+                  <Carpeta
+                    key={nodo.categoria.id}
+                    nodo={nodo}
+                    abiertas={abiertas}
+                    alternar={alternar}
+                    editable={editable}
+                  />
+                ))}
+                {arbol.sinCategoria.length ? (
+                  <View style={{ gap: 6 }}>
+                    <Text style={[s.pie, { color: t.textoSec }]}>
+                      Sin categoría{editable ? " · tocá uno para asignarle una" : ""}
+                    </Text>
+                    <Tarjeta>
+                      {arbol.sinCategoria.map((p, i) => (
+                        <View key={p.id}>
+                          {i > 0 ? <Separador sangria={42} /> : null}
+                          <FilaProducto
+                            producto={p}
+                            onPress={() =>
+                              router.push({ pathname: "/producto", params: { id: p.id } })
+                            }
+                          />
+                        </View>
+                      ))}
+                    </Tarjeta>
+                  </View>
+                ) : null}
               </>
-            ) : filtrando ? (
-              <Vacio
-                sf="magnifyingglass"
-                ion="search"
-                titulo="Sin resultados"
-                texto="Probá con otra búsqueda o cambiá el filtro."
-              />
             ) : (
-              <Vacio
-                sf="shippingbox"
-                ion="cube-outline"
-                titulo="Inventario vacío"
-                texto={
-                  editable
-                    ? "Agregá un producto con ＋ o apuntá la cámara a la estantería."
-                    : "Todavía no hay productos en este inventario."
-                }
-              />
+              <>
+                <Vacio
+                  sf="folder.badge.plus"
+                  ion="folder-open-outline"
+                  titulo="Empezá por las categorías"
+                  texto={
+                    editable
+                      ? "Agrupá tus productos en carpetas, como Bebidas o Herramientas. Después agregás los productos adentro."
+                      : "Todavía no hay categorías ni productos en este inventario."
+                  }
+                />
+                {editable ? (
+                  <BotonPrincipal
+                    onPress={() =>
+                      router.push({ pathname: "/categoria", params: { luego: "producto" } })
+                    }
+                  >
+                    Crear categoría
+                  </BotonPrincipal>
+                ) : null}
+              </>
             )}
           </Animated.View>
         </>

@@ -33,6 +33,10 @@ export function mensajeError(e: unknown): string {
   if (/code verifier|invalid flow state|auth code/i.test(msg)) {
     return "Abrí el enlace en el mismo teléfono donde te registraste, o usá el código del correo.";
   }
+  if (/categorias_nombre_unico/i.test(msg)) return "Ya hay una categoría con ese nombre.";
+  if (/violates foreign key constraint.*(categoria|categorias_padre)/i.test(msg)) {
+    return "La categoría todavía tiene productos o subcategorías adentro.";
+  }
   if (/network|fetch/i.test(msg)) return "Sin conexión. Revisá tu internet.";
   return msg;
 }

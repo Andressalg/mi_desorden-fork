@@ -1,9 +1,17 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import type { Inventario, Producto, ProductoInput, Rol, Usuario } from "@mi-desorden/core";
+import type {
+  Categoria,
+  Inventario,
+  Producto,
+  ProductoInput,
+  Rol,
+  Usuario,
+} from "@mi-desorden/core";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import {
   auth,
+  categorias as categoriasApi,
   escucharInventario,
   escucharMisAccesos,
   inventarios as inventariosApi,
@@ -74,6 +82,16 @@ function useEstado() {
   const activo = inventarios.find((i) => i.id === activoId) ?? inventarios[0] ?? null;
   const miRol: Rol = activo?.miembros.find((m) => m.usuario_id === uid)?.rol ?? "lector";
 
+  const categoriasQ = useQuery({
+    queryKey: ["categorias", activo?.id],
+    enabled: !!activo,
+    queryFn: () => categoriasApi.listar(activo!.id),
+  });
+  const refrescarCategorias = useCallback(
+    (invId: string) => qc.invalidateQueries({ queryKey: ["categorias", invId] }),
+    [qc],
+  );
+
   const productosQ = useQuery({
     queryKey: ["productos", activo?.id],
     enabled: !!activo,
@@ -124,13 +142,22 @@ function useEstado() {
         refrescarInventarios();
       },
       miembrosCambiaron: refrescarInventarios,
+      categoriasCambiaron: () => void refrescarCategorias(invId),
       presentes: setPresentes,
     });
     return () => {
       cortar();
       setPresentes(new Set());
     };
-  }, [activo?.id, uid, enVivo, ponerProducto, sacarProducto, refrescarInventarios]);
+  }, [
+    activo?.id,
+    uid,
+    enVivo,
+    ponerProducto,
+    sacarProducto,
+    refrescarInventarios,
+    refrescarCategorias,
+  ]);
 
   /**
    * Saca un inventario de la lista al instante (después de borrarlo o salir) y
@@ -299,6 +326,33 @@ function useEstado() {
       await refrescarInventarios();
     },
 
+    /** Crea una categoría (o subcategoría) en el inventario activo y la devuelve. */
+    async crearCategoria(nombre: string, padreId: string | null): Promise<Categoria> {
+      if (!activo) throw new Error("No hay inventario abierto.");
+      const nueva = await categoriasApi.crear(activo.id, nombre, padreId);
+      qc.setQueryData<Categoria[]>(["categorias", activo.id], (l) =>
+        l?.some((c) => c.id === nueva.id) ? l : [...(l ?? []), nueva],
+      );
+      void refrescarCategorias(activo.id);
+      return nueva;
+    },
+
+    async renombrarCategoria(id: string, nombre: string) {
+      const c = await categoriasApi.renombrar(id, nombre);
+      qc.setQueryData<Categoria[]>(["categorias", c.inventario_id], (l) =>
+        l?.map((x) => (x.id === c.id ? c : x)),
+      );
+      void refrescarCategorias(c.inventario_id);
+    },
+
+    /** Solo vacía: la base no deja borrar una categoría con productos o subcategorías. */
+    async eliminarCategoria(id: string) {
+      if (!activo) return;
+      await categoriasApi.eliminar(id);
+      qc.setQueryData<Categoria[]>(["categorias", activo.id], (l) => l?.filter((c) => c.id !== id));
+      void refrescarCategorias(activo.id);
+    },
+
     async cambiarRol(invId: string, usuarioId: string, rol: Rol) {
       await miembros.cambiarRol(invId, usuarioId, rol);
       await refrescarInventarios();
@@ -327,7 +381,7 @@ function useEstado() {
     },
 
     async refrescar() {
-      await Promise.all([inventariosQ.refetch(), productosQ.refetch()]);
+      await Promise.all([inventariosQ.refetch(), productosQ.refetch(), categoriasQ.refetch()]);
     },
   };
 
@@ -340,8 +394,10 @@ function useEstado() {
     miRol,
     enVivo,
     productosActivos: productosQ.data ?? [],
-    cargando: inventariosQ.isLoading || (!!activo && productosQ.isLoading),
-    errorCarga: inventariosQ.error ?? productosQ.error,
+    categoriasActivas: categoriasQ.data ?? [],
+    cargando:
+      inventariosQ.isLoading || (!!activo && (productosQ.isLoading || categoriasQ.isLoading)),
+    errorCarga: inventariosQ.error ?? productosQ.error ?? categoriasQ.error,
     refrescando: inventariosQ.isRefetching || productosQ.isRefetching,
     ...acciones,
   };
