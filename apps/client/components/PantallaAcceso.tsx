@@ -483,6 +483,11 @@ export function PantallaAcceso({ modoInicial }: { modoInicial: Modo }) {
                     onFocus={() => setFoco("clave")}
                     onBlur={() => setFoco(null)}
                     secureTextEntry={!ver}
+                    // Con la contraseña visible, iOS la trata como texto común:
+                    // ponía mayúscula a la primera letra y autocorregía.
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    spellCheck={false}
                     textContentType={reg ? "newPassword" : "password"}
                     autoComplete={reg ? "new-password" : "current-password"}
                     returnKeyType="go"
