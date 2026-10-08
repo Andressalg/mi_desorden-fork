@@ -5,13 +5,19 @@
     "scheme": "midesorden",
     "version": "0.1.0",
     "orientation": "portrait",
+    "icon": "./assets/icono.png",
     "userInterfaceStyle": "automatic",
     "ios": {
       "bundleIdentifier": "dev.rgtech.midesorden",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "appleTeamId": "KXT5H89TYR"
     },
     "android": {
-      "package": "dev.rgtech.midesorden"
+      "package": "dev.rgtech.midesorden",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icono-android.png",
+        "backgroundColor": "#FF9500"
+      }
     },
     "plugins": [
       "expo-router",
