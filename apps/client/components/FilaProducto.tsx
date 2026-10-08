@@ -4,7 +4,10 @@ import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import { Icono, tocar } from "@/components/ui";
 import { FotoProducto } from "@/components/vistas";
 import { haceCuanto } from "@/lib/fecha";
-import { colorLed, tipo, useTema, type Tema } from "@/lib/theme";
+import { tipo, useTema, type Tema } from "@/lib/theme";
+
+/** Hasta dónde va la línea separadora entre filas: alineada con el texto, después de la foto. */
+export const SANGRIA_FILA = 70;
 
 export function estadoStock(t: Tema, p: Producto) {
   if (p.cantidad === 0) return { texto: "Agotado", color: t.rojo };
@@ -41,16 +44,18 @@ export function FilaProducto({
     inputRange: [0, 1],
     outputRange: [`${t.tinte}00`, `${t.tinte}2E`], // 0 → 18 % de naranja, como el diseño
   });
-  const led = colorLed(t, producto.led);
 
   return (
     <Pressable onPress={() => (tocar(), onPress())}>
       {({ pressed }) => (
         <Animated.View style={[s.fila, { backgroundColor: pressed ? t.relleno : fondo }]}>
-          <View style={[s.led, { backgroundColor: led, shadowColor: led }]} />
           {producto.foto_path ? (
             <FotoProducto ruta={producto.foto_path} tam={40} version={producto.actualizado_en} />
-          ) : null}
+          ) : (
+            <View style={[s.sinFoto, { backgroundColor: t.relleno }]}>
+              <Icono sf="shippingbox" ion="cube-outline" size={20} color={t.textoTer} />
+            </View>
+          )}
           <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
             <Text style={[tipo.cuerpo, { color: t.texto, fontWeight: "500" }]} numberOfLines={1}>
               {producto.nombre}
@@ -99,13 +104,12 @@ const s = StyleSheet.create({
     paddingRight: 14,
     paddingVertical: 10,
   },
-  led: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    shadowOpacity: 0.8,
-    shadowRadius: 5,
-    shadowOffset: { width: 0, height: 0 },
+  sinFoto: {
+    width: 40,
+    height: 40,
+    borderRadius: 40 * 0.22, // igual que FotoProducto
+    alignItems: "center",
+    justifyContent: "center",
   },
   meta: { flexDirection: "row", alignItems: "center", gap: 4 },
   numero: { fontVariant: ["tabular-nums"], fontWeight: "600" },

@@ -1,4 +1,3 @@
-import type { LedColor } from "@mi-desorden/core";
 import { useColorScheme } from "react-native";
 
 /** Colores de sistema de iOS (HIG), en claro y oscuro. */
@@ -41,12 +40,6 @@ export type Tema = typeof claro & { oscuro: boolean };
 export function useTema(): Tema {
   const esOscuro = useColorScheme() === "dark";
   return { ...(esOscuro ? oscuro : claro), oscuro: esOscuro };
-}
-
-export function colorLed(t: Tema, c: LedColor) {
-  return { verde: t.verde, azul: t.azul, rojo: t.rojo, amarillo: t.amarillo, violeta: t.violeta }[
-    c
-  ];
 }
 
 /** Escala tipográfica de iOS. */

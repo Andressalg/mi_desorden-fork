@@ -24,7 +24,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "mi_desorden usa la cámara para reconocer los productos de tu estantería.",
+          "cameraPermission": "mi_desorden usa la cámara para reconocer tus productos por su foto y su etiqueta. Todo pasa en el teléfono.",
           "microphonePermission": false,
           "recordAudioAndroid": false
         }

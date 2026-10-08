@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { mensajeError } from "@/api";
 import { Carpeta } from "@/components/Carpeta";
-import { FilaProducto } from "@/components/FilaProducto";
+import { FilaProducto, SANGRIA_FILA } from "@/components/FilaProducto";
 import { MenuMas } from "@/components/menus";
 import { BotonPrincipal, Icono, tocar, Vacio } from "@/components/ui";
 import {
@@ -264,7 +264,7 @@ export default function Inventario() {
                   <Tarjeta>
                     {lista.map((p, i) => (
                       <View key={p.id}>
-                        {i > 0 ? <Separador sangria={42} /> : null}
+                        {i > 0 ? <Separador sangria={SANGRIA_FILA} /> : null}
                         <FilaProducto
                           producto={p}
                           categoria={rutaCategoria(categoriasActivas, p.categoria_id)}
@@ -306,7 +306,7 @@ export default function Inventario() {
                     <Tarjeta>
                       {arbol.sinCategoria.map((p, i) => (
                         <View key={p.id}>
-                          {i > 0 ? <Separador sangria={42} /> : null}
+                          {i > 0 ? <Separador sangria={SANGRIA_FILA} /> : null}
                           <FilaProducto
                             producto={p}
                             onPress={() =>

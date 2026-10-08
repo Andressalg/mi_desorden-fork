@@ -8,6 +8,7 @@ import type {
   Usuario,
 } from "@mi-desorden/core";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { olvidarHuella } from "@/lib/huellas";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import {
   auth,
@@ -258,13 +259,17 @@ function useEstado() {
       void refrescarInventarios();
     },
 
-    async guardarProducto(productoId: string | null, input: ProductoInput) {
+    /** Crea o actualiza y devuelve el producto como quedó en la base. */
+    async guardarProducto(productoId: string | null, input: ProductoInput): Promise<Producto> {
       if (productoId) {
-        ponerProducto(await productosApi.actualizar(productoId, input));
-      } else {
-        ponerProducto(await productosApi.crear(activo!.id, input));
-        refrescarInventarios();
+        const p = await productosApi.actualizar(productoId, input);
+        ponerProducto(p);
+        return p;
       }
+      const p = await productosApi.crear(activo!.id, input);
+      ponerProducto(p);
+      refrescarInventarios();
+      return p;
     },
 
     async eliminarProducto(productoId: string) {
@@ -277,6 +282,7 @@ function useEstado() {
     /** Foto del producto: base64 JPEG de la cámara. */
     async subirFotoProducto(producto: Producto, base64: string) {
       ponerProducto(await productosApi.subirFoto(producto, base64));
+      void olvidarHuella(producto.id);
       qc.invalidateQueries({
         queryKey: ["foto", producto.inventario_id + "/" + producto.id + ".jpg"],
       });
@@ -284,11 +290,13 @@ function useEstado() {
 
     async quitarFotoProducto(producto: Producto) {
       ponerProducto(await productosApi.quitarFoto(producto));
+      void olvidarHuella(producto.id);
     },
 
     /** Lo que hace la cámara al reconocer un producto: lo marca como visto. */
-    async confirmarDeteccion(productoId: string) {
-      ponerProducto(await productosApi.marcarDetectado(productoId));
+    /** La cámara reconoció el producto y se corrigió (o confirmó) la cantidad. */
+    async ajustarDesdeCamara(productoId: string, cantidad: number) {
+      ponerProducto(await productosApi.ajustarDesdeCamara(productoId, cantidad));
     },
 
     async invitar(invId: string, email: string, rol: Exclude<Rol, "dueño">) {

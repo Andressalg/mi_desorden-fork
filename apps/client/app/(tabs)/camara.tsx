@@ -1,8 +1,8 @@
-import type { LedColor, Producto } from "@mi-desorden/core";
-import { useIsFocused } from "expo-router";
+import type { Producto } from "@mi-desorden/core";
+import { router, useIsFocused } from "expo-router";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Haptics from "expo-haptics";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
@@ -15,32 +15,76 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { mensajeError } from "@/api";
+import { Stepper } from "@/components/Stepper";
 import { BotonPrincipal, BotonVidrio, Icono, tocar, Vidrio } from "@/components/ui";
+import { FotoProducto } from "@/components/vistas";
+import { rutaCategoria } from "@/lib/categorias";
+import { fotoPendiente, type Foto } from "@/lib/fotoPendiente";
+import { huellasDe } from "@/lib/huellas";
+import { decidir } from "@/lib/reconocer";
 import { useStore } from "@/lib/store";
-import { colorLed, tipo, useTema } from "@/lib/theme";
-
-const LEDS: LedColor[] = ["verde", "azul", "amarillo", "rojo", "violeta"];
+import { tipo, useTema } from "@/lib/theme";
+import { Reconocer } from "@/modules/reconocer";
 
 type Escaneo =
   | { fase: "listo" }
-  | { fase: "buscando" }
-  | { fase: "encontrado"; producto: Producto }
-  | { fase: "nada" };
+  | { fase: "analizando" }
+  /** Lo reconoció: se muestra con su cantidad para corregirla. */
+  | { fase: "encontrado"; producto: Producto; otros: Producto[]; foto: Foto }
+  /** Duda entre varios (o el usuario dijo "no es este"). */
+  | { fase: "dudoso"; opciones: Producto[]; sugerencia: string; foto: Foto }
+  /** No se parece a nada del inventario: se ofrece agregarlo. */
+  | { fase: "nuevo"; sugerencia: string; foto: Foto }
+  | { fase: "error"; mensaje: string };
+
+const vibrar = (tipoAviso: Haptics.NotificationFeedbackType) => {
+  if (Platform.OS !== "web") Haptics.notificationAsync(tipoAviso).catch(() => {});
+};
 
 /**
- * Visor de la cámara. El reconocimiento real todavía no existe (ver
- * docs/DECISIONES.md): por ahora elige un producto del inventario que tenga el
- * LED seleccionado, para poder mostrar el flujo completo en la demo.
+ * Cámara que reconoce productos en el teléfono (Apple Vision, sin red): compara
+ * la foto con las fotos de los productos y lee el texto de la etiqueta. Al
+ * reconocer uno, muestra su cantidad para corregirla; si no lo conoce, ofrece
+ * agregarlo con esa misma foto, que queda de referencia.
  */
 export default function Camara() {
   const t = useTema();
   const insets = useSafeAreaInsets();
   const enFoco = useIsFocused();
+  const camara = useRef<CameraView>(null);
   const [permiso, pedirPermiso] = useCameraPermissions();
-  const { activo, productosActivos, confirmarDeteccion, enVivo } = useStore();
-  const [led, setLed] = useState<LedColor>("verde");
+  const { activo, productosActivos, categoriasActivas, enVivo, miRol } = useStore();
   const [linterna, setLinterna] = useState(false);
   const [escaneo, setEscaneo] = useState<Escaneo>({ fase: "listo" });
+
+  // Huellas de las fotos de los productos: se preparan al abrir la cámara.
+  const [huellas, setHuellas] = useState<Record<string, string>>({});
+  const [preparando, setPreparando] = useState<{ hechas: number; total: number } | null>(null);
+  const clave = productosActivos.map((p) => `${p.id}:${p.foto_path ?? ""}`).join(",");
+  useEffect(() => {
+    if (!enFoco || !Reconocer) return;
+    let vivo = true;
+    huellasDe(productosActivos, (hechas, total) => vivo && setPreparando({ hechas, total }))
+      .then((h) => vivo && setHuellas(h))
+      .finally(() => vivo && setPreparando(null));
+    return () => {
+      vivo = false;
+    };
+    // Depende de `clave` (ids y fotos) y no de la lista entera: si no, recalcula en cada render.
+  }, [enFoco, clave]);
+
+  const candidatos = useMemo(
+    () =>
+      productosActivos.map((p) => ({
+        id: p.id,
+        nombre: p.nombre,
+        categoria: rutaCategoria(categoriasActivas, p.categoria_id),
+      })),
+    [productosActivos, categoriasActivas],
+  );
+  const porId = (id: string) => productosActivos.find((p) => p.id === id);
+  const sinFoto = productosActivos.filter((p) => !p.foto_path).length;
 
   if (!permiso) return <View style={{ flex: 1, backgroundColor: "#000" }} />;
 
@@ -54,8 +98,8 @@ export default function Camara() {
           Acceso a la cámara
         </Text>
         <Text style={[tipo.cuerpo, { color: t.textoSec, textAlign: "center", maxWidth: 320 }]}>
-          La usamos para reconocer los productos de tu estantería según el color de su LED. No se
-          guarda ninguna foto.
+          La usamos para reconocer tus productos por su foto y su etiqueta. Todo pasa en el
+          teléfono: la foto no se sube a ningún lado.
         </Text>
         <View style={{ width: "100%", maxWidth: 320, marginTop: 8 }}>
           {permiso.canAskAgain ? (
@@ -68,31 +112,74 @@ export default function Camara() {
     );
   }
 
-  function escanear() {
-    if (escaneo.fase === "buscando") return;
+  async function reconocer() {
+    if (escaneo.fase === "analizando" || !camara.current) return;
+    if (!Reconocer) {
+      setEscaneo({
+        fase: "error",
+        mensaje:
+          Platform.OS === "ios"
+            ? "Esta versión de la app todavía no reconoce productos: hay que reinstalarla."
+            : "Por ahora el reconocimiento funciona solo en iPhone.",
+      });
+      return;
+    }
     if (Platform.OS !== "web")
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-    setEscaneo({ fase: "buscando" });
-    setTimeout(() => {
-      const candidatos = productosActivos.filter((p) => p.led === led);
-      const producto = candidatos[Math.floor(Math.random() * candidatos.length)];
-      if (Platform.OS !== "web") {
-        Haptics.notificationAsync(
-          producto
-            ? Haptics.NotificationFeedbackType.Success
-            : Haptics.NotificationFeedbackType.Warning,
-        ).catch(() => {});
+    setEscaneo({ fase: "analizando" });
+    try {
+      const tomada = await camara.current.takePictureAsync({ quality: 0.5, base64: true });
+      if (!tomada?.base64) throw new Error("No se pudo sacar la foto.");
+      const foto = { uri: tomada.uri, base64: tomada.base64 };
+      const { distancias, textos } = await Reconocer.analizar(foto.uri, huellas);
+      const v = decidir(candidatos, distancias, textos);
+      const elegido = v.producto ? porId(v.producto.id) : undefined;
+      const otros = v.alternativas.map((a) => porId(a.id)).filter((p): p is Producto => !!p);
+
+      if (elegido) {
+        vibrar(Haptics.NotificationFeedbackType.Success);
+        setEscaneo({ fase: "encontrado", producto: elegido, otros, foto });
+      } else if (otros.length) {
+        vibrar(Haptics.NotificationFeedbackType.Warning);
+        setEscaneo({ fase: "dudoso", opciones: otros, sugerencia: v.sugerencia, foto });
+      } else {
+        vibrar(Haptics.NotificationFeedbackType.Warning);
+        setEscaneo({ fase: "nuevo", sugerencia: v.sugerencia, foto });
       }
-      setEscaneo(producto ? { fase: "encontrado", producto } : { fase: "nada" });
-    }, 1300);
+    } catch (e) {
+      vibrar(Haptics.NotificationFeedbackType.Error);
+      setEscaneo({ fase: "error", mensaje: mensajeError(e) });
+    }
   }
 
+  function agregar(sugerencia: string, foto: Foto) {
+    fotoPendiente.poner(foto);
+    setEscaneo({ fase: "listo" });
+    router.push({ pathname: "/producto", params: { desdeCamara: "1", nombre: sugerencia } });
+  }
+
+  const cerrar = () => setEscaneo({ fase: "listo" });
   const abajo = insets.bottom + (Platform.OS === "ios" ? 12 : 72);
+  const pista =
+    escaneo.fase === "analizando"
+      ? "Reconociendo…"
+      : preparando
+        ? `Preparando las fotos de tus productos (${preparando.hechas}/${preparando.total})…`
+        : !productosActivos.length
+          ? "Apuntá a un producto: si no está, lo agregás con esta foto"
+          : sinFoto
+            ? `Apuntá a un producto · ${sinFoto} sin foto se reconocen solo por la etiqueta`
+            : "Apuntá a un producto y tocá el disparador";
 
   return (
     <View style={s.fondo}>
       {enFoco ? (
-        <CameraView style={StyleSheet.absoluteFill} facing="back" enableTorch={linterna} />
+        <CameraView
+          ref={camara}
+          style={StyleSheet.absoluteFill}
+          facing="back"
+          enableTorch={linterna}
+        />
       ) : null}
 
       {/* Arriba: inventario activo + linterna */}
@@ -116,66 +203,56 @@ export default function Camara() {
       {/* Centro: visor */}
       <View style={s.centro} pointerEvents="none">
         <Visor
-          color={colorLed(t, led)}
-          buscando={escaneo.fase === "buscando"}
-          marcado={escaneo.fase === "buscando" || escaneo.fase === "encontrado"}
+          color={t.tinte}
+          buscando={escaneo.fase === "analizando"}
+          marcado={escaneo.fase === "analizando" || escaneo.fase === "encontrado"}
         />
       </View>
 
-      {/* Abajo: resultado, selector de LED y disparador */}
+      {/* Abajo: resultado o pista, y el disparador */}
       <View style={[s.abajo, { bottom: abajo }]}>
-        {escaneo.fase === "encontrado" || escaneo.fase === "nada" ? (
+        {escaneo.fase === "listo" || escaneo.fase === "analizando" ? (
+          <Vidrio claro style={s.pista}>
+            <Text style={[tipo.nota, s.textoClaro, { textAlign: "center" }]}>{pista}</Text>
+          </Vidrio>
+        ) : (
           <Resultado
             escaneo={escaneo}
-            onConfirmar={(p) => {
-              confirmarDeteccion(p.id).catch(() => {});
-              setEscaneo({ fase: "listo" });
-            }}
-            onCerrar={() => setEscaneo({ fase: "listo" })}
+            editable={miRol !== "lector"}
+            onElegir={(producto, foto) =>
+              setEscaneo({ fase: "encontrado", producto, otros: [], foto })
+            }
+            onNoEs={(e) =>
+              setEscaneo({
+                fase: "dudoso",
+                opciones: e.otros,
+                sugerencia: "",
+                foto: e.foto,
+              })
+            }
+            onAgregar={agregar}
+            onCerrar={cerrar}
           />
-        ) : (
-          <Vidrio claro style={s.pista}>
-            <Text style={[tipo.nota, s.textoClaro]}>
-              {escaneo.fase === "buscando"
-                ? `Buscando el LED ${led}…`
-                : "Apuntá a la estantería y tocá el disparador"}
-            </Text>
-          </Vidrio>
         )}
 
-        <Vidrio claro style={s.leds}>
-          {LEDS.map((c) => {
-            const activo = c === led;
-            return (
-              <Pressable
-                key={c}
-                accessibilityLabel={`Buscar LED ${c}`}
-                accessibilityState={{ selected: activo }}
-                onPress={() => (tocar(), setLed(c))}
-                style={[s.ledAnillo, { borderColor: activo ? "#fff" : "transparent" }]}
-              >
-                <View style={[s.led, { backgroundColor: colorLed(t, c) }]} />
-              </Pressable>
-            );
-          })}
-        </Vidrio>
-
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Reconocer"
-          onPress={escanear}
-          style={({ pressed }) => [s.disparador, { transform: [{ scale: pressed ? 0.92 : 1 }] }]}
-        >
-          <View style={s.disparadorInterior}>
-            {escaneo.fase === "buscando" ? <ActivityIndicator color="#000" /> : null}
-          </View>
-        </Pressable>
+        {escaneo.fase === "listo" || escaneo.fase === "analizando" ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Reconocer producto"
+            onPress={reconocer}
+            style={({ pressed }) => [s.disparador, { transform: [{ scale: pressed ? 0.92 : 1 }] }]}
+          >
+            <View style={s.disparadorInterior}>
+              {escaneo.fase === "analizando" ? <ActivityIndicator color="#000" /> : null}
+            </View>
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );
 }
 
-/** Esquinas del visor: toman el color del LED mientras busca y cuando encontró algo; laten al buscar. */
+/** Esquinas del visor: se tiñen mientras analiza y cuando reconoció algo; laten al analizar. */
 function Visor({
   color,
   buscando,
@@ -245,74 +322,225 @@ function Visor({
   );
 }
 
+type EscaneoConResultado = Exclude<Escaneo, { fase: "listo" } | { fase: "analizando" }>;
+
 function Resultado({
   escaneo,
-  onConfirmar,
+  editable,
+  onElegir,
+  onNoEs,
+  onAgregar,
   onCerrar,
 }: {
-  escaneo: Extract<Escaneo, { fase: "encontrado" } | { fase: "nada" }>;
-  onConfirmar: (p: Producto) => void;
+  escaneo: EscaneoConResultado;
+  editable: boolean;
+  onElegir: (p: Producto, foto: Foto) => void;
+  onNoEs: (e: Extract<Escaneo, { fase: "encontrado" }>) => void;
+  onAgregar: (sugerencia: string, foto: Foto) => void;
   onCerrar: () => void;
 }) {
   const t = useTema();
   const entrada = useRef(new Animated.Value(0)).current;
   useEffect(() => {
+    entrada.setValue(0);
     Animated.spring(entrada, {
       toValue: 1,
       useNativeDriver: true,
       damping: 16,
       stiffness: 180,
     }).start();
-  }, [entrada]);
+  }, [entrada, escaneo.fase]);
 
   const estilo = {
     opacity: entrada,
     transform: [{ translateY: entrada.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) }],
   };
+  const cerrar = (
+    <BotonVidrio etiqueta="Cerrar" sf="xmark" ion="close" tam={32} onPress={onCerrar} />
+  );
 
   return (
     <Animated.View style={[{ width: "100%", maxWidth: 420 }, estilo]}>
       <Vidrio style={s.tarjeta}>
         {escaneo.fase === "encontrado" ? (
+          <Encontrado
+            escaneo={escaneo}
+            editable={editable}
+            cerrar={cerrar}
+            onNoEs={() => onNoEs(escaneo)}
+            onCerrar={onCerrar}
+          />
+        ) : escaneo.fase === "dudoso" ? (
           <>
             <View style={s.tarjetaFila}>
-              <View
-                style={[
-                  s.ledGrande,
-                  {
-                    backgroundColor: colorLed(t, escaneo.producto.led),
-                    shadowColor: colorLed(t, escaneo.producto.led),
-                  },
-                ]}
-              />
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={[tipo.destacado, { color: t.texto }]} numberOfLines={1}>
-                  {escaneo.producto.nombre}
-                </Text>
-                <Text style={[tipo.nota, { color: t.textoSec }]} numberOfLines={1}>
-                  Lugar {escaneo.producto.ubicacion} · {escaneo.producto.cantidad} en inventario
+              <View style={{ flex: 1 }}>
+                <Text style={[tipo.destacado, { color: t.texto }]}>¿Cuál es?</Text>
+                <Text style={[tipo.nota, { color: t.textoSec }]}>
+                  {escaneo.opciones.length
+                    ? "Se parece a estos. Elegí el correcto."
+                    : "No encontré otro parecido."}
                 </Text>
               </View>
-              <BotonVidrio etiqueta="Cerrar" sf="xmark" ion="close" tam={32} onPress={onCerrar} />
+              {cerrar}
             </View>
-            <BotonPrincipal onPress={() => onConfirmar(escaneo.producto)}>
-              Confirmar ubicación
-            </BotonPrincipal>
+            {escaneo.opciones.map((p) => (
+              <Pressable
+                key={p.id}
+                accessibilityRole="button"
+                onPress={() => (tocar(), onElegir(p, escaneo.foto))}
+                style={({ pressed }) => [
+                  s.opcion,
+                  { backgroundColor: pressed ? t.relleno : "transparent" },
+                ]}
+              >
+                <Miniatura producto={p} />
+                <Text style={[tipo.cuerpo, { color: t.texto, flex: 1 }]} numberOfLines={1}>
+                  {p.nombre}
+                </Text>
+                <Text style={[tipo.nota, { color: t.textoSec }]}>{p.cantidad}</Text>
+              </Pressable>
+            ))}
+            {editable ? (
+              <BotonPrincipal
+                variante="gris"
+                onPress={() => onAgregar(escaneo.sugerencia, escaneo.foto)}
+              >
+                Es otro: agregar producto
+              </BotonPrincipal>
+            ) : null}
+          </>
+        ) : escaneo.fase === "nuevo" ? (
+          <>
+            <View style={s.tarjetaFila}>
+              <View style={[s.miniatura, { backgroundColor: t.relleno }]}>
+                <Icono sf="questionmark" ion="help" size={20} color={t.textoSec} />
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={[tipo.destacado, { color: t.texto }]}>No lo reconozco</Text>
+                <Text style={[tipo.nota, { color: t.textoSec }]} numberOfLines={2}>
+                  {escaneo.sugerencia
+                    ? `En la etiqueta dice “${escaneo.sugerencia}”.`
+                    : "No se parece a ningún producto de este inventario."}
+                </Text>
+              </View>
+              {cerrar}
+            </View>
+            {editable ? (
+              <BotonPrincipal onPress={() => onAgregar(escaneo.sugerencia, escaneo.foto)}>
+                {escaneo.sugerencia ? `Agregar “${escaneo.sugerencia}”` : "Agregar producto"}
+              </BotonPrincipal>
+            ) : null}
           </>
         ) : (
           <View style={s.tarjetaFila}>
-            <View style={[s.ledGrande, { backgroundColor: t.relleno }]} />
-            <View style={{ flex: 1 }}>
-              <Text style={[tipo.destacado, { color: t.texto }]}>Nada con ese LED</Text>
-              <Text style={[tipo.nota, { color: t.textoSec }]}>
-                Ningún producto de este inventario usa ese color.
-              </Text>
+            <View style={[s.miniatura, { backgroundColor: t.relleno }]}>
+              <Icono
+                sf="exclamationmark.triangle"
+                ion="warning-outline"
+                size={20}
+                color={t.textoSec}
+              />
             </View>
-            <BotonVidrio etiqueta="Cerrar" sf="xmark" ion="close" tam={32} onPress={onCerrar} />
+            <Text style={[tipo.nota, { color: t.texto, flex: 1 }]}>{escaneo.mensaje}</Text>
+            {cerrar}
           </View>
         )}
       </Vidrio>
     </Animated.View>
+  );
+}
+
+/** Reconocido: su cantidad con ± para corregirla ahí mismo. */
+function Encontrado({
+  escaneo,
+  editable,
+  cerrar,
+  onNoEs,
+  onCerrar,
+}: {
+  escaneo: Extract<Escaneo, { fase: "encontrado" }>;
+  editable: boolean;
+  cerrar: React.ReactNode;
+  onNoEs: () => void;
+  onCerrar: () => void;
+}) {
+  const t = useTema();
+  const { categoriasActivas, ajustarDesdeCamara } = useStore();
+  const { producto } = escaneo;
+  const [cantidad, setCantidad] = useState(producto.cantidad);
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const cambio = cantidad !== producto.cantidad;
+  const detalle = [rutaCategoria(categoriasActivas, producto.categoria_id), producto.ubicacion]
+    .filter(Boolean)
+    .join(" · ");
+
+  async function guardar() {
+    setGuardando(true);
+    setError(null);
+    try {
+      await ajustarDesdeCamara(producto.id, cantidad);
+      vibrar(Haptics.NotificationFeedbackType.Success);
+      onCerrar();
+    } catch (e) {
+      setError(mensajeError(e));
+      setGuardando(false);
+    }
+  }
+
+  return (
+    <>
+      <View style={s.tarjetaFila}>
+        <Miniatura producto={producto} />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={[tipo.destacado, { color: t.texto }]} numberOfLines={1}>
+            {producto.nombre}
+          </Text>
+          {detalle ? (
+            <Text style={[tipo.nota, { color: t.textoSec }]} numberOfLines={1}>
+              {detalle}
+            </Text>
+          ) : null}
+        </View>
+        {cerrar}
+      </View>
+
+      <View style={[s.cantidad, { backgroundColor: t.relleno }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={[tipo.nota, { color: t.textoSec }]}>
+            {cambio ? `Antes: ${producto.cantidad}` : "En inventario"}
+          </Text>
+          <Text style={[tipo.titulo2, { color: t.texto, fontVariant: ["tabular-nums"] }]}>
+            {cantidad}
+          </Text>
+        </View>
+        {editable ? <Stepper valor={cantidad} onCambio={setCantidad} /> : null}
+      </View>
+
+      {error ? <Text style={[tipo.nota, { color: t.rojo }]}>{error}</Text> : null}
+
+      {editable ? (
+        <BotonPrincipal onPress={guardar} cargando={guardando}>
+          {cambio ? "Guardar cantidad" : "Está bien así"}
+        </BotonPrincipal>
+      ) : null}
+      <Pressable accessibilityRole="button" hitSlop={8} onPress={() => (tocar(), onNoEs())}>
+        <Text style={[tipo.nota, { color: t.tinte, textAlign: "center", fontWeight: "600" }]}>
+          No es este producto
+        </Text>
+      </Pressable>
+    </>
+  );
+}
+
+function Miniatura({ producto }: { producto: Producto }) {
+  const t = useTema();
+  return producto.foto_path ? (
+    <FotoProducto ruta={producto.foto_path} tam={44} version={producto.actualizado_en} />
+  ) : (
+    <View style={[s.miniatura, { backgroundColor: t.relleno }]}>
+      <Icono sf="shippingbox" ion="cube-outline" size={20} color={t.textoSec} />
+    </View>
   );
 }
 
@@ -365,17 +593,7 @@ const s = StyleSheet.create({
   visor: { width: "68%", maxWidth: 320, aspectRatio: 1 },
   esquina: { position: "absolute", width: 52, height: 52 },
   abajo: { position: "absolute", left: 16, right: 16, alignItems: "center", gap: 16 },
-  pista: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20 },
-  leds: { flexDirection: "row", gap: 6, padding: 6, borderRadius: 30 },
-  ledAnillo: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 2.5,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  led: { width: 28, height: 28, borderRadius: 14 },
+  pista: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, maxWidth: 360 },
   disparador: {
     width: 78,
     height: 78,
@@ -393,14 +611,29 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  tarjeta: { borderRadius: 30, padding: 16, gap: 14 },
+  tarjeta: { borderRadius: 30, padding: 16, gap: 12 },
   tarjetaFila: { flexDirection: "row", alignItems: "center", gap: 12 },
-  ledGrande: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    shadowOpacity: 0.9,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 0 },
+  miniatura: {
+    width: 44,
+    height: 44,
+    borderRadius: 44 * 0.22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  opcion: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 6,
+    borderRadius: 14,
+  },
+  cantidad: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 18,
   },
 });

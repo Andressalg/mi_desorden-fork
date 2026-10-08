@@ -1,22 +1,26 @@
-import type { LedColor } from "@mi-desorden/core";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { MenuCategoria } from "@/components/menus";
 import { Stepper } from "@/components/Stepper";
 import { FotoProducto } from "@/components/vistas";
-import { BotonPrincipal, CampoFila, Contenido, Fila, Grupo, Icono, tocar } from "@/components/ui";
+import { BotonPrincipal, CampoFila, Contenido, Fila, Grupo } from "@/components/ui";
 import { confirmar } from "@/lib/confirmar";
 import { haceCuanto } from "@/lib/fecha";
 import { puedeEditar, useStore } from "@/lib/store";
-import { colorLed, tipo, useTema } from "@/lib/theme";
-
-const LEDS: LedColor[] = ["verde", "azul", "amarillo", "rojo", "violeta"];
+import { fotoPendiente } from "@/lib/fotoPendiente";
+import { tipo, useTema } from "@/lib/theme";
 
 export default function ProductoForm() {
   const t = useTema();
-  // categoria: viene preelegida al crear el producto desde una carpeta.
-  const params = useLocalSearchParams<{ id?: string; categoria?: string }>();
+  // categoria: preelegida al crear desde una carpeta.
+  // nombre + desdeCamara: la cámara no lo reconoció y propone agregarlo con su foto.
+  const params = useLocalSearchParams<{
+    id?: string;
+    categoria?: string;
+    nombre?: string;
+    desdeCamara?: string;
+  }>();
   const id = params.id;
   const {
     productosActivos,
@@ -24,12 +28,17 @@ export default function ProductoForm() {
     guardarProducto,
     eliminarProducto,
     quitarFotoProducto,
+    subirFotoProducto,
     miRol,
   } = useStore();
   const existente = id ? productosActivos.find((p) => p.id === id) : undefined;
   const editable = puedeEditar(miRol);
 
-  const [nombre, setNombre] = useState(existente?.nombre ?? "");
+  const [nombre, setNombre] = useState(existente?.nombre ?? params.nombre ?? "");
+  // La foto que sacó la cámara (solo al crear desde ahí).
+  const [fotoCamara] = useState(() =>
+    !existente && params.desdeCamara === "1" ? fotoPendiente.ver() : null,
+  );
   const [categoriaId, setCategoriaId] = useState<string | null>(
     existente?.categoria_id ?? params.categoria ?? null,
   );
@@ -37,7 +46,6 @@ export default function ProductoForm() {
   const [cantidad, setCantidad] = useState(existente?.cantidad ?? 1);
   const [minimo, setMinimo] = useState(existente?.minimo ?? 1);
   const [ubicacion, setUbicacion] = useState(existente?.ubicacion ?? "");
-  const [led, setLed] = useState<LedColor>(existente?.led ?? "verde");
   const [fotoError, setFotoError] = useState<string | null>(null);
 
   const [guardando, setGuardando] = useState(false);
@@ -50,14 +58,18 @@ export default function ProductoForm() {
     setGuardando(true);
     setError(null);
     try {
-      await guardarProducto(existente?.id ?? null, {
+      const guardado = await guardarProducto(existente?.id ?? null, {
         nombre: nombre.trim(),
         categoria_id: categoriaId,
         cantidad,
         minimo,
         ubicacion: ubicacion.trim().toUpperCase(),
-        led,
       });
+      // Nuevo desde la cámara: su foto queda como referencia para reconocerlo.
+      if (fotoCamara && !existente) {
+        fotoPendiente.descartar();
+        await subirFotoProducto(guardado, fotoCamara.base64).catch(() => {});
+      }
       router.back();
     } catch (e) {
       setError((e as Error).message);
@@ -149,10 +161,18 @@ export default function ProductoForm() {
           />
         </Grupo>
 
-        <Grupo
-          titulo="En la estantería"
-          pie="La cámara busca el LED de este color para reconocer el hueco del producto."
-        >
+        {fotoCamara ? (
+          <Grupo
+            titulo="Foto"
+            pie="La de la cámara: se guarda con el producto y sirve para reconocerlo la próxima vez."
+          >
+            <View style={s.foto}>
+              <Image source={{ uri: fotoCamara.uri }} style={s.fotoCamara} />
+            </View>
+          </Grupo>
+        ) : null}
+
+        <Grupo titulo="Dónde está">
           <CampoFila
             etiqueta="Lugar"
             placeholder="A1"
@@ -161,28 +181,6 @@ export default function ProductoForm() {
             autoCapitalize="characters"
             editable={editable}
           />
-          <View style={s.leds}>
-            {LEDS.map((c) => {
-              const activo = c === led;
-              const hex = colorLed(t, c);
-              return (
-                <Pressable
-                  key={c}
-                  accessibilityLabel={`LED ${c}`}
-                  accessibilityState={{ selected: activo }}
-                  disabled={!editable}
-                  onPress={() => (tocar(), setLed(c))}
-                  style={[s.anillo, { borderColor: activo ? hex : "transparent" }]}
-                >
-                  <View style={[s.circulo, { backgroundColor: hex }]}>
-                    {activo ? (
-                      <Icono sf="checkmark" ion="checkmark" size={16} color="#fff" weight="bold" />
-                    ) : null}
-                  </View>
-                </Pressable>
-              );
-            })}
-          </View>
         </Grupo>
 
         {/* En el contenido y no en el encabezado: en iOS 26 los botones del encabezado
@@ -280,26 +278,6 @@ function Numero({ n, onCambio }: { n: number; onCambio: (n: number) => void }) {
 
 const s = StyleSheet.create({
   foto: { alignItems: "center", paddingVertical: 16 },
+  fotoCamara: { width: 160, height: 160, borderRadius: 160 * 0.22 },
   numero: { flexDirection: "row", alignItems: "center", gap: 12 },
-  leds: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    paddingVertical: 14,
-    paddingHorizontal: 8,
-  },
-  anillo: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    borderWidth: 3,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  circulo: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: "center",
-    justifyContent: "center",
-  },
 });
