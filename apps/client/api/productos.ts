@@ -92,11 +92,11 @@ export const productos = {
     return data!.signedUrl;
   },
 
-  /** La cámara reconoció el producto: queda marcado como visto por la cámara. */
-  async marcarDetectado(id: string): Promise<Producto> {
+  /** La cámara reconoció el producto: nueva cantidad y queda marcado como visto por la cámara. */
+  async ajustarDesdeCamara(id: string, cantidad: number): Promise<Producto> {
     const { data, error } = await supabase
       .from("productos")
-      .update({ fuente: "camara" })
+      .update({ cantidad: Math.max(0, Math.round(cantidad)), fuente: "camara" })
       .eq("id", id)
       .select()
       .single();

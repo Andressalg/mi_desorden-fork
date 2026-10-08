@@ -34,7 +34,7 @@ export interface Paginado<T> {
 
 /* ---------- Inventario (Sprint 1) ---------- */
 
-/** Color del LED que marca el lugar de un producto en la estantería. */
+/** @deprecated Ya no se usan LEDs: la cámara reconoce el producto por su foto y su etiqueta. */
 export type LedColor = "verde" | "azul" | "rojo" | "amarillo" | "violeta";
 
 export interface Usuario {
@@ -97,6 +97,7 @@ export interface Producto {
   minimo: number;
   /** Pasillo / estante, ej. "A2". */
   ubicacion: string;
+  /** @deprecated Queda en la base, la app ya no lo usa. */
   led: LedColor;
   /** Quién hizo el último cambio: la persona o la cámara. */
   fuente: "manual" | "camara";
@@ -107,7 +108,7 @@ export interface Producto {
 
 export type ProductoInput = Pick<
   Producto,
-  "nombre" | "categoria_id" | "cantidad" | "minimo" | "ubicacion" | "led"
+  "nombre" | "categoria_id" | "cantidad" | "minimo" | "ubicacion"
 >;
 
 /** Lo que devuelve GET /auth/me: la sesión según el JWT de Supabase. */

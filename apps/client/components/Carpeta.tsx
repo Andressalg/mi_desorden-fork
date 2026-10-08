@@ -1,7 +1,7 @@
 import type { Producto } from "@mi-desorden/core";
 import { router } from "expo-router";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
-import { FilaProducto } from "@/components/FilaProducto";
+import { FilaProducto, SANGRIA_FILA } from "@/components/FilaProducto";
 import { MenuPuntos, type Accion } from "@/components/menus";
 import { Icono, tocar } from "@/components/ui";
 import { Separador, Tarjeta } from "@/components/vistas";
@@ -10,8 +10,8 @@ import { confirmar } from "@/lib/confirmar";
 import { useStore } from "@/lib/store";
 import { tipo, useTema } from "@/lib/theme";
 
-/** Sangría de la segunda línea de las filas de producto (después del LED). */
-const SANGRIA_PRODUCTO = 42;
+/** Las líneas entre productos arrancan donde empieza el texto (después de la foto). */
+const SANGRIA_PRODUCTO = SANGRIA_FILA;
 
 const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`;
 

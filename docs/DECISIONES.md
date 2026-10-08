@@ -18,7 +18,15 @@
 
 ### 1. Dónde corre el reconocimiento
 
-La grande, y está sin decidir.
+**Decidido (oct 2026): en el teléfono, con Apple Vision.** Gratis, sin red y la foto no sale del teléfono. Se sacaron los LEDs.
+
+- `VNGenerateImageFeaturePrint`: la foto se compara con la foto de cada producto (las huellas se guardan en el teléfono, `lib/huellas.ts`).
+- `VNRecognizeText`: lee la etiqueta (marca, nombre, tamaño) y la compara con el nombre del producto.
+- `lib/reconocer.ts` combina las dos señales y decide: reconocido, "¿cuál es?" o producto nuevo (con la misma foto como referencia).
+- Módulo nativo propio en `apps/client/modules/reconocer` (solo iOS por ahora; Android quedaría con ML Kit).
+- Alternativa descartada por ahora: IA en la nube (Gemini/Claude). Reconoce más cosas, pero necesita red, tiene costo o cuotas y la foto sale del teléfono.
+
+Lo de abajo queda como contexto de la decisión.
 
 | Opción | A favor | En contra |
 |--------|---------|-----------|
@@ -26,7 +34,7 @@ La grande, y está sin decidir.
 | **En el servidor** | Modelos grandes (YOLO, ONNX), se actualiza sin publicar la app | Necesita red, subir frames, más latencia y costo |
 | **Híbrido** | El teléfono detecta el LED / el recuadro y el servidor clasifica solo ese recorte | Más código de los dos lados |
 
-Lo que hay hoy: la vista de cámara elige un producto del inventario con el LED seleccionado (simulado).
+Antes de esto, la cámara elegía al azar un producto con el LED seleccionado (simulado).
 
 ### 2. Base de datos de la API
 
