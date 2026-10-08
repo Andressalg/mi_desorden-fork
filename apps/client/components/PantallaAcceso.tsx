@@ -512,7 +512,7 @@ export function PantallaAcceso({ modoInicial }: { modoInicial: Modo }) {
                 </Animated.View>
               </View>
 
-              <View style={s.pie}>
+              <View style={[s.pie, { gap: 6 }]}>
                 {error ? (
                   <View style={s.error} accessibilityLiveRegion="polite">
                     <Icono
@@ -523,7 +523,10 @@ export function PantallaAcceso({ modoInicial }: { modoInicial: Modo }) {
                     />
                     <Text style={[s.pieTexto, { color: t.rojo, flex: 1 }]}>{error}</Text>
                   </View>
-                ) : reg ? (
+                ) : null}
+                {/* Con error en el registro, el error alcanza; al iniciar sesión el
+                    enlace para recuperar la clave sigue a mano (es cuando más sirve). */}
+                {error && reg ? null : reg ? (
                   <View style={{ gap: 6 }}>
                     <View style={s.barras}>
                       {[1, 2, 3, 4].map((i) => (
