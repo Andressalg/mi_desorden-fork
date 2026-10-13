@@ -8,7 +8,7 @@ import {
   Picker,
   Section,
   Text as TextoSF,
-} from "@expo/ui/swift-ui";
+} from "@/components/swiftui";
 import {
   font,
   foregroundStyle,
@@ -16,7 +16,7 @@ import {
   lineLimit,
   pickerStyle,
   tag,
-} from "@expo/ui/swift-ui/modifiers";
+} from "@/components/swiftui";
 import { useQuery } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import { router, useFocusEffect } from "expo-router";
