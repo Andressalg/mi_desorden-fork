@@ -21,12 +21,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icono, tocar, type SFSymbol } from "@/components/ui";
 import { useStore } from "@/lib/store";
 import { useTema, type Tema } from "@/lib/theme";
+import { PanelMarca } from "@/components/PanelMarca";
+import { useEsAncho } from "@/lib/pantalla";
 
-/**
- * Acceso: login y registro en una sola pantalla, con la intro de "escáner"
- * del diseño (Claude Design · Rediseño profesional autenticación app).
- * La intro corre una vez por arranque de la app y se salta con "Reducir movimiento".
- */
+
 
 export type Modo = "login" | "registro";
 
@@ -55,6 +53,7 @@ export function PantallaAcceso({ modoInicial }: { modoInicial: Modo }) {
   const t = useTema();
   const insets = useSafeAreaInsets();
   const { height: alto } = useWindowDimensions();
+  const ancho = useEsAncho();
   const { iniciarSesion, registrar } = useStore();
 
   const [modo, setModo] = useState<Modo>(modoInicial);
@@ -271,9 +270,10 @@ export function PantallaAcceso({ modoInicial }: { modoInicial: Modo }) {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: t.fondo }}
+      style={{ flex: 1, backgroundColor: t.fondo, flexDirection: ancho ? "row" : "column" }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
+       {ancho && <PanelMarca />}
       {/* Resplandor naranja arriba */}
       <View
         pointerEvents="none"
@@ -285,6 +285,7 @@ export function PantallaAcceso({ modoInicial }: { modoInicial: Modo }) {
         ]}
       />
       <ScrollView
+        style={{ flex: 1 }}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={[
           s.contenido,
