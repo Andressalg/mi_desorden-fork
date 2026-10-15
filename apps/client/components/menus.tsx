@@ -8,7 +8,7 @@ import {
   Picker,
   Section,
   Text as TextoSF,
-} from "@expo/ui/swift-ui";
+} from "@/components/swiftui";
 import {
   background,
   disabled,
@@ -19,7 +19,7 @@ import {
   pickerStyle,
   shapes,
   tag,
-} from "@expo/ui/swift-ui/modifiers";
+} from "@/components/swiftui";
 import { Alert, Platform, Pressable, Text } from "react-native";
 import { Icono, tocar } from "@/components/ui";
 import { BotonRedondo } from "@/components/vistas";
