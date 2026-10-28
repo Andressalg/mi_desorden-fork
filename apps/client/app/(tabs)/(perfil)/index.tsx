@@ -1,8 +1,10 @@
+import { useQuery } from "@tanstack/react-query";
 import Constants from "expo-constants";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Animated, Pressable, StyleSheet, Switch, Text, View } from "react-native";
 import { config } from "@/api";
+import { soyAdmin } from "@/api/admin";
 import { Icono, IconoCelda, tocar } from "@/components/ui";
 import {
   Seccion,
@@ -20,12 +22,15 @@ export default function Perfil() {
   const t = useTema();
   const { usuario, inventarios, seleccionarInventario, enVivo, setEnVivo, cerrarSesion } =
     useStore();
-  const entrada = useEntrada(5);
+  const entrada = useEntrada(6);
   const menu = useMenuInventario();
   // Cerrar sesión pide un segundo toque en 3 s (sin alerta), como el diseño.
   const [seguro, setSeguro] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => void (timer.current && clearTimeout(timer.current)), []);
+
+  // La RPC devuelve false si no hay sesión o si no sos admin.
+  const { data: esAdmin } = useQuery({ queryKey: ["soy-admin"], queryFn: soyAdmin });
 
   if (!usuario) return null;
 
@@ -113,10 +118,47 @@ export default function Perfil() {
         </Tarjeta>
       </Seccion>
 
+      {esAdmin ? (
+        <Seccion titulo="Administración" style={entrada(2)}>
+          <Tarjeta>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityHint="Abre el panel de administración"
+              onPress={() => {
+                tocar();
+                router.push("/admin");
+              }}
+              style={({ pressed }) => [
+                s.fila,
+                { minHeight: 60 },
+                pressed && { backgroundColor: t.relleno },
+              ]}
+            >
+              <IconoCelda sf="chart.bar.fill" ion="bar-chart" fondo={t.tinte} />
+              <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+                <Text style={[s.filaTitulo, { color: t.texto }]} numberOfLines={1}>
+                  Panel de administración
+                </Text>
+                <Text style={[s.filaSub, { color: t.textoSec }]} numberOfLines={1}>
+                  Usuarios, inventarios, productos y uso
+                </Text>
+              </View>
+              <Icono
+                sf="chevron.right"
+                ion="chevron-forward"
+                size={13}
+                color={t.textoTer}
+                weight="semibold"
+              />
+            </Pressable>
+          </Tarjeta>
+        </Seccion>
+      ) : null}
+
       <Seccion
         titulo="Preferencias"
         pie="Cuando está activa, ves al instante los cambios que hace tu equipo en el inventario."
-        style={entrada(2)}
+        style={entrada(3)}
       >
         <Tarjeta>
           <View style={[s.fila, { minHeight: 56 }]}>
@@ -131,7 +173,7 @@ export default function Perfil() {
         </Tarjeta>
       </Seccion>
 
-      <Seccion titulo="Acerca de" style={entrada(3)}>
+      <Seccion titulo="Acerca de" style={entrada(4)}>
         <Tarjeta>
           <View style={s.dato}>
             <Text style={[s.filaTitulo, { color: t.texto }]}>API</Text>
@@ -149,7 +191,7 @@ export default function Perfil() {
         </Tarjeta>
       </Seccion>
 
-      <Animated.View style={entrada(4)}>
+      <Animated.View style={entrada(5)}>
         <Pressable
           accessibilityRole="button"
           accessibilityHint={seguro ? "Tocá de nuevo para cerrar la sesión" : undefined}
