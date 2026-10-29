@@ -29,7 +29,8 @@ export class SupabaseRestService {
     this.anonKey = config.get<string>("SUPABASE_ANON_KEY") ?? "";
   }
 
-  private get habilitado(): boolean {
+  /** Público: los repositorios deciden si usan Supabase o el fallback en memoria. */
+  get estaConfigurado(): boolean {
     return Boolean(this.url && this.anonKey);
   }
 
@@ -43,7 +44,7 @@ export class SupabaseRestService {
 
   /** Devuelve true si escribió. Nunca tira. */
   async insertar(tabla: string, fila: unknown, authorization?: string): Promise<boolean> {
-    if (!this.habilitado || !authorization) return false;
+    if (!this.estaConfigurado || !authorization) return false;
     try {
       const r = await fetch(`${this.url}/rest/v1/${tabla}`, {
         method: "POST",
@@ -63,7 +64,7 @@ export class SupabaseRestService {
 
   /** Query cruda de PostgREST, sin `?`. Devuelve [] si falla. */
   async seleccionar<T>(tabla: string, query: string, authorization?: string): Promise<T[]> {
-    if (!this.habilitado || !authorization) return [];
+    if (!this.estaConfigurado || !authorization) return [];
     try {
       const r = await fetch(`${this.url}/rest/v1/${tabla}?${query}`, {
         headers: this.cabeceras(authorization),

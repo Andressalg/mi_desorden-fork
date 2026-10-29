@@ -9,20 +9,21 @@ import { useTema } from "@/lib/theme";
 
 const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-const AHORA = new Date();
-const ANIOS = [AHORA.getFullYear(), AHORA.getFullYear() - 1, AHORA.getFullYear() - 2];
+
+const AHORA = new Date().getFullYear();
+const ANIOS = [AHORA, AHORA - 1, AHORA - 2];
 
 const mb = (b: number) => `${(b / 1048576).toFixed(1)} MB`;
 
 export default function Admin() {
   const t = useTema();
   const qc = useQueryClient();
-  const [anio, setAnio] = useState(AHIORA());
+  const [anio, setAnio] = useState(AHORA);
   const [mes, setMes] = useState<number | null>(null);
   const [usuario, setUsuario] = useState<string | undefined>();
 
   const { desde, hasta } = rangoDe(anio, mes);
-  const clave = ["admin", anio, mes, usuario];
+  const clave = ["admin", anio, mes, usuario] as const;
 
   const k = useQuery({ queryKey: [...clave, "kpis"], queryFn: () => kpis(desde, hasta, usuario) });
   const traf = useQuery({ queryKey: [...clave, "traf"], queryFn: () => trafico(desde, hasta, usuario) });
@@ -32,10 +33,8 @@ export default function Admin() {
 
   const liberar = useMutation({
     mutationFn: liberarFotos,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin", "memoria"] });
-      qc.invalidateQueries({ queryKey: ["admin", anio, mes, usuario] });
-    },
+    // Invalidar el prefijo cubre kpis, tráfico y serie de todos los filtros.
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["admin"] }),
   });
 
   if (k.isLoading) return <View style={e.centro}><ActivityIndicator color={t.tinte} /></View>;
@@ -52,8 +51,10 @@ export default function Admin() {
   }
 
   const d = k.data!;
-  const maxHora = Math.max(...(traf.data ?? []).map((p) => p.usos), 1);
-  const maxDia = Math.max(...(serie.data ?? []).map((p) => p.productos), 1);
+  const traficoHoras = traf.data ?? [];
+  const serieDias = serie.data ?? [];
+  const maxHora = Math.max(...traficoHoras.map((p) => p.usos), 1);
+  const maxDia = Math.max(...serieDias.map((p) => p.productos), 1);
 
   return (
     <ScrollView contentContainerStyle={e.cuerpo}>
@@ -70,24 +71,32 @@ export default function Admin() {
         <Kpi etiqueta="Productos registrados" valor={d.productos} />
         <Kpi etiqueta="Productos movidos" valor={d.productos_movidos} />
         <Kpi etiqueta="Requests a la API" valor={d.usos} />
-        <Kpi etiqueta="Con error" valor={d.usos_con_error} alerta={d.usos_con_error > 0} />
-        <Kpi etiqueta="Memoria usada" texto={mb(d.memoria_bytes)} />
+        <Kpi etiqueta="Con error" valor={d.usos_con_error} alerta={(d.usos_con_error ?? 0) > 0} />
+        <Kpi etiqueta="Memoria usada" texto={mb(d.memoria_bytes ?? 0)} />
         <Kpi etiqueta="Invitaciones" valor={d.invitaciones} />
       </View>
 
       <Text style={[e.titulo, { color: t.textoSec }]}>Tránsito por hora</Text>
-      <View style={e.chart}>
-        {(traf.data ?? []).map((p) => (
-          <View key={p.hora} style={[e.barra, { height: `${(p.usos / maxHora) * 100}%`, backgroundColor: t.tinte }]} />
-        ))}
-      </View>
+      {traficoHoras.length ? (
+        <View style={e.chart}>
+          {traficoHoras.map((p) => (
+            <View key={p.hora} style={[e.barra, { height: `${(p.usos / maxHora) * 100}%`, backgroundColor: t.tinte }]} />
+          ))}
+        </View>
+      ) : (
+        <Text style={[e.vacio, { color: t.textoSec }]}>Sin datos en el período.</Text>
+      )}
 
       <Text style={[e.titulo, { color: t.textoSec }]}>Productos registrados por día</Text>
-      <View style={e.chart}>
-        {(serie.data ?? []).map((p) => (
-          <View key={p.dia} style={[e.barra, { height: `${(p.productos / maxDia) * 100}%`, backgroundColor: "#4A9EFF" }]} />
-        ))}
-      </View>
+      {serieDias.length ? (
+        <View style={e.chart}>
+          {serieDias.map((p) => (
+            <View key={p.dia} style={[e.barra, { height: `${(p.productos / maxDia) * 100}%`, backgroundColor: "#4A9EFF" }]} />
+          ))}
+        </View>
+      ) : (
+        <Text style={[e.vacio, { color: t.textoSec }]}>Sin datos en el período.</Text>
+      )}
 
       <Text style={[e.titulo, { color: t.textoSec }]}>Uso por usuario</Text>
       {(equipo.data ?? []).map((u) => (
@@ -110,17 +119,17 @@ export default function Admin() {
         <View key={m.usuario_id} style={e.fila}>
           <Text style={e.nombre} numberOfLines={1}>{m.email}</Text>
           <Text style={{ color: t.textoSec, fontSize: 11 }}>{mb(m.bytes)} · {m.archivos} arch.</Text>
-          <Pressable onPress={() => liberar.mutate(m.usuario_id)} style={e.boton}>
+          <Pressable
+            onPress={() => liberar.mutate(m.usuario_id)}
+            disabled={liberar.isPending}
+            style={[e.boton, liberar.isPending && { opacity: 0.5 }]}
+          >
             <Text style={e.botonTexto}>Liberar</Text>
           </Pressable>
         </View>
       ))}
     </ScrollView>
   );
-}
-
-function AHIORA() {
-  return new Date().getFullYear();
 }
 
 function Filtros(p: {
@@ -191,6 +200,7 @@ const e = StyleSheet.create({
   kpiEt: { color: "#9A9AA5", fontSize: 9.5, textTransform: "uppercase" },
   kpiVal: { color: "#ECECEF", fontSize: 20, fontWeight: "700", marginTop: 5 },
   titulo: { fontSize: 12, marginTop: 14, textTransform: "uppercase" },
+  vacio: { fontSize: 12, paddingVertical: 6 },
   chart: { flexDirection: "row", alignItems: "flex-end", gap: 2, height: 90 },
   barra: { flex: 1, minHeight: 2, borderRadius: 2 },
   fila: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 8,

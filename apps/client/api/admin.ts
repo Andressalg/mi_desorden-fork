@@ -3,6 +3,7 @@ import type {
 } from "@mi-desorden/core";
 import { supabase } from "./supabase";
 
+/** true solo si la RPC confirma que soy admin. Un error de red es false. */
 export async function soyAdmin() {
   const { data, error } = await supabase.rpc("es_admin");
   if (error) return false;

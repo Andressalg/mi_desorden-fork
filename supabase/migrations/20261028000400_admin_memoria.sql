@@ -1,16 +1,22 @@
 create or replace function public.memoria_por_usuario()
 returns table (usuario_id uuid, nombre text, email text, archivos bigint, bytes bigint)
-language sql stable security definer set search_path = ''
+language plpgsql stable security definer set search_path = ''
 as $fn$
-  select p.id, p.nombre, p.email, count(o.id),
-         coalesce(sum((o.metadata->>'size')::bigint), 0)
-  from public.perfiles p
-  left join public.inventarios i on i.creado_por = p.id
-  left join public.productos pr on pr.inventario_id = i.id and pr.foto_path is not null
-  left join storage.objects o on o.bucket_id = 'productos' and o.name = pr.foto_path
-  where public.es_admin()
-  group by p.id, p.nombre, p.email
-  order by 5 desc
+begin
+  if not public.es_admin() then
+    raise exception 'Solo administradores' using errcode = '42501';
+  end if;
+
+  return query
+    select p.id, p.nombre, p.email, count(o.id),
+           coalesce(sum((o.metadata->>'size')::bigint), 0)
+    from public.perfiles p
+    left join public.inventarios i on i.creado_por = p.id
+    left join public.productos pr on pr.inventario_id = i.id and pr.foto_path is not null
+    left join storage.objects o on o.bucket_id = 'productos' and o.name = pr.foto_path
+    group by p.id, p.nombre, p.email
+    order by 5 desc;
+end;
 $fn$;
 
 -- Moderación: libera las fotos de los inventarios de un usuario.

@@ -54,17 +54,23 @@ create or replace function public.trafico_por_hora(
   p_hasta timestamptz,
   p_usuario uuid default null
 ) returns table (hora int, usos bigint)
-language sql stable security definer set search_path = ''
+language plpgsql stable security definer set search_path = ''
 as $fn$
-  select h.hora, count(u.id)
-  from generate_series(0, 23) as h(hora)
-  left join public.usos_api u
-    on date_part('hour', u.creado_en) = h.hora
-   and u.creado_en between p_desde and p_hasta
-   and (p_usuario is null or u.usuario_id = p_usuario)
-  where public.es_admin()
-  group by h.hora
-  order by h.hora
+begin
+  if not public.es_admin() then
+    raise exception 'Solo administradores' using errcode = '42501';
+  end if;
+
+  return query
+    select h.hora, count(u.id)
+    from generate_series(0, 23) as h(hora)
+    left join public.usos_api u
+      on date_part('hour', u.creado_en) = h.hora
+     and u.creado_en between p_desde and p_hasta
+     and (p_usuario is null or u.usuario_id = p_usuario)
+    group by h.hora
+    order by h.hora;
+end;
 $fn$;
 
 create or replace function public.serie_productos(
@@ -72,20 +78,26 @@ create or replace function public.serie_productos(
   p_hasta timestamptz,
   p_usuario uuid default null
 ) returns table (dia date, productos bigint)
-language sql stable security definer set search_path = ''
+language plpgsql stable security definer set search_path = ''
 as $fn$
-  select d::date, count(x.id)
-  from generate_series(p_desde::date, p_hasta::date, interval '1 day') as d
-  left join lateral (
-    select pr.id
-    from public.productos pr
-    join public.inventarios i on i.id = pr.inventario_id
-    where pr.creado_en::date = d::date
-      and (p_usuario is null or i.creado_por = p_usuario)
-  ) x on true
-  where public.es_admin()
-  group by d
-  order by d
+begin
+  if not public.es_admin() then
+    raise exception 'Solo administradores' using errcode = '42501';
+  end if;
+
+  return query
+    select d::date, count(x.id)
+    from generate_series(p_desde::date, p_hasta::date, interval '1 day') as d
+    left join lateral (
+      select pr.id
+      from public.productos pr
+      join public.inventarios i on i.id = pr.inventario_id
+      where pr.creado_en::date = d::date
+        and (p_usuario is null or i.creado_por = p_usuario)
+    ) x on true
+    group by d
+    order by d;
+end;
 $fn$;
 
 create or replace function public.uso_por_usuario(
@@ -95,23 +107,29 @@ create or replace function public.uso_por_usuario(
   usuario_id uuid, nombre text, email text, es_admin boolean,
   usos bigint, errores bigint, productos bigint, movidos bigint
 )
-language sql stable security definer set search_path = ''
+language plpgsql stable security definer set search_path = ''
 as $fn$
-  select p.id, p.nombre, p.email, p.es_admin,
-    (select count(*) from public.usos_api u
-      where u.usuario_id = p.id and u.creado_en between p_desde and p_hasta),
-    (select count(*) from public.usos_api u
-      where u.usuario_id = p.id and u.creado_en between p_desde and p_hasta
-        and u.estado >= 400),
-    (select count(*) from public.productos pr
-      join public.inventarios i on i.id = pr.inventario_id
-      where i.creado_por = p.id and pr.creado_en between p_desde and p_hasta),
-    (select count(*) from public.productos pr
-      join public.inventarios i on i.id = pr.inventario_id
-      where i.creado_por = p.id and pr.actualizado_en between p_desde and p_hasta)
-  from public.perfiles p
-  where public.es_admin()
-  order by 5 desc
+begin
+  if not public.es_admin() then
+    raise exception 'Solo administradores' using errcode = '42501';
+  end if;
+
+  return query
+    select p.id, p.nombre, p.email, p.es_admin,
+      (select count(*) from public.usos_api u
+        where u.usuario_id = p.id and u.creado_en between p_desde and p_hasta),
+      (select count(*) from public.usos_api u
+        where u.usuario_id = p.id and u.creado_en between p_desde and p_hasta
+          and u.estado >= 400),
+      (select count(*) from public.productos pr
+        join public.inventarios i on i.id = pr.inventario_id
+        where i.creado_por = p.id and pr.creado_en between p_desde and p_hasta),
+      (select count(*) from public.productos pr
+        join public.inventarios i on i.id = pr.inventario_id
+        where i.creado_por = p.id and pr.actualizado_en between p_desde and p_hasta)
+    from public.perfiles p
+    order by 5 desc;
+end;
 $fn$;
 
 create or replace function public.eventos_usuario(
@@ -120,15 +138,21 @@ create or replace function public.eventos_usuario(
   p_hasta timestamptz,
   p_limit int default 50
 ) returns table (ruta text, metodo text, estado int, duracion_ms int, creado_en timestamptz)
-language sql stable security definer set search_path = ''
+language plpgsql stable security definer set search_path = ''
 as $fn$
-  select u.ruta, u.metodo, u.estado, u.duracion_ms, u.creado_en
-  from public.usos_api u
-  where u.usuario_id = p_usuario
-    and u.creado_en between p_desde and p_hasta
-    and public.es_admin()
-  order by u.creado_en desc
-  limit least(p_limit, 200)
+begin
+  if not public.es_admin() then
+    raise exception 'Solo administradores' using errcode = '42501';
+  end if;
+
+  return query
+    select u.ruta, u.metodo, u.estado, u.duracion_ms, u.creado_en
+    from public.usos_api u
+    where u.usuario_id = p_usuario
+      and u.creado_en between p_desde and p_hasta
+    order by u.creado_en desc
+    limit least(p_limit, 200);
+end;
 $fn$;
 
 revoke execute on function public.kpis_plataforma(timestamptz, timestamptz, uuid) from public, anon;

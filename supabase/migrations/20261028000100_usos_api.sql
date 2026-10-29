@@ -15,6 +15,9 @@ create index if not exists usos_api_usuario_idx on public.usos_api (usuario_id, 
 
 alter table public.usos_api enable row level security;
 
+revoke all on public.usos_api from anon;
+grant select, insert on public.usos_api to authenticated;
+
 drop policy if exists "admin lee los usos" on public.usos_api;
 create policy "admin lee los usos" on public.usos_api
   for select to authenticated using (public.es_admin());

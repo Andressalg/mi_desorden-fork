@@ -9,10 +9,11 @@ drop trigger if exists al_tocar_producto on public.productos;
 drop function if exists public.tocar_producto() cascade;
 
 create function public.tocar_producto()
-returns trigger language plpgsql
+returns trigger language plpgsql security definer set search_path = ''
 as $fn$
 begin
   new.actualizado_en := now();
+  -- coalesce: un update sin JWT (script, servicio) no borra el autor anterior.
   new.actualizado_por := coalesce(auth.uid(), new.actualizado_por);
   return new;
 end;
